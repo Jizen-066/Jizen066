@@ -1,0 +1,126 @@
+/* style.css — 自定义样式与动画 */
+
+/* 基础 */
+html { scroll-behavior: smooth; }
+body { background: #05070f; }
+
+/* 区块标题：前缀 > 高亮 */
+.section-title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #fff;
+  margin-bottom: 2rem;
+}
+.section-title::before {
+  content: '> ';
+  color: #22d3ee;
+}
+
+/* ===== 按钮：流光扫过效果 ===== */
+.btn-primary,
+.btn-secondary {
+  position: relative;
+  overflow: hidden;
+  padding: 0.75rem 1.75rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #0891b2, #22d3ee);
+  color: #05070f;
+}
+.btn-secondary {
+  border: 1px solid #22d3ee;
+  color: #22d3ee;
+}
+/* 流光条（伪元素） */
+.btn-primary::before,
+.btn-secondary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: skewX(-20deg);
+}
+.btn-primary:hover::before,
+.btn-secondary:hover::before {
+  animation: shine 0.6s ease forwards;
+}
+.btn-primary:hover,
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.5);
+}
+@keyframes shine {
+  from { left: -120%; }
+  to { left: 160%; }
+}
+
+/* ===== 项目卡片：抖动 + 高斯模糊背景 ===== */
+.project-card {
+  position: relative;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(0px);
+  transition: border-color 0.2s ease, backdrop-filter 0.3s ease;
+}
+.project-card:hover {
+  border-color: #22d3ee;
+  backdrop-filter: blur(6px);
+  animation: card-shake 0.3s ease;
+}
+@keyframes card-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-2px, 1px) rotate(-0.5deg); }
+  50% { transform: translate(2px, -1px) rotate(0.5deg); }
+  75% { transform: translate(-1px, -1px) rotate(-0.3deg); }
+}
+
+/* ===== 开屏星空旋转动画层 ===== */
+.loader-starfield {
+  width: 200px;
+  height: 200px;
+  background:
+    radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+    radial-gradient(1px 1px at 120px 80px, #fff, transparent),
+    radial-gradient(2px 2px at 60px 150px, #22d3ee, transparent),
+    radial-gradient(1px 1px at 160px 140px, #fff, transparent),
+    radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+    radial-gradient(1px 1px at 150px 30px, #fff, transparent);
+  animation: spin 3s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===== 按钮悬停粒子扩散（预留装饰） ===== */
+@keyframes particle-burst {
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ===== 视频背景 ===== */
+#bg-video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -30;
+}
+#bg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: -20;
+  background: rgba(5, 7, 15, 0.5);
+}

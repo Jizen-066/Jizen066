@@ -1,0 +1,7 @@
+# 大文件/媒体资源（视频本地保留，不纳入版本控制）
+assets/galaxy.mp4
+
+# 系统/编辑器文件
+.DS_Store
+Thumbs.db
+*.log
