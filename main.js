@@ -53,10 +53,44 @@
     });
   }
 
+  // 背景音乐：循环播放，静音按钮切换
+  function initBGM() {
+    const bgm = document.getElementById('bgm');
+    const btn = document.getElementById('mute-btn');
+    if (!bgm || !btn) return;
+
+    bgm.volume = 0.6;
+
+    const tryPlay = () => {
+      const p = bgm.play();
+      if (p && p.catch) p.catch(() => {});
+    };
+
+    // 尝试自动播放；被浏览器拦截时，首次交互后再播
+    tryPlay();
+    const start = () => {
+      tryPlay();
+      document.removeEventListener('pointerdown', start);
+    };
+    document.addEventListener('pointerdown', start);
+
+    // 静音切换
+    const iconOn = document.getElementById('mute-icon-on');
+    const iconOff = document.getElementById('mute-icon-off');
+    btn.addEventListener('click', () => {
+      bgm.muted = !bgm.muted;
+      if (iconOn && iconOff) {
+        iconOn.classList.toggle('hidden', bgm.muted);
+        iconOff.classList.toggle('hidden', !bgm.muted);
+      }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     window.Stars.init('stars', { count: 160 });
     initLoader();
     bindSoundEffects();
+    initBGM();
     unlockAudioOnFirstInteraction();
   });
 })();
