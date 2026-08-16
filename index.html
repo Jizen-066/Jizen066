@@ -36,8 +36,8 @@
       <h1 class="text-5xl md:text-8xl font-black tracking-tight text-white">Jizen</h1>
       <p class="mt-6 max-w-xl text-slate-400 text-lg">一个兴趣使然的全栈开发者</p>
       <div class="mt-10 flex gap-4">
-        <button class="btn-primary" data-sound="click">查看项目</button>
-        <button class="btn-secondary" data-sound="click">联系我</button>
+        <a href="#projects" class="btn-primary" data-sound="click">查看项目</a>
+        <a href="#contact" class="btn-secondary" data-sound="click">联系我</a>
       </div>
     </section>
 
@@ -69,22 +69,25 @@
       <h2 class="section-title">技术文章</h2>
       <ul class="divide-y divide-slate-800">
         <li class="py-5">
-          <a href="#" class="text-lg font-semibold text-white hover:text-cyan-400">用原生 Canvas 实现丝滑的星空粒子动画</a>
+          <button class="blog-toggle w-full text-left text-lg font-semibold text-white hover:text-cyan-400" data-sound="hover">用原生 Canvas 实现丝滑的星空粒子动画</button>
           <p class="mt-1 text-slate-400 text-sm">从 requestAnimationFrame 到视差位移与拖尾残影，拆解一个高性能星空背景的完整实现思路。</p>
+          <div class="blog-body hidden mt-3 text-slate-300 text-sm leading-relaxed">核心是用 requestAnimationFrame 驱动渲染循环，把每颗星星按深度 z 分层，鼠标移动时按视差系数反向偏移，再叠加引力聚集与半透明残影实现拖尾。性能上避免每帧创建对象、减少 fillStyle 切换，就能在数百颗粒子上保持 60fps。</div>
         </li>
         <li class="py-5">
-          <a href="#" class="text-lg font-semibold text-white hover:text-cyan-400">Web Audio API 入门：不靠音频文件合成电子音效</a>
+          <button class="blog-toggle w-full text-left text-lg font-semibold text-white hover:text-cyan-400" data-sound="hover">Web Audio API 入门：不靠音频文件合成电子音效</button>
           <p class="mt-1 text-slate-400 text-sm">用 OscillatorNode 和 GainNode 实时合成启动音、悬停音与点击音，并聊聊浏览器自动播放策略的坑。</p>
+          <div class="blog-body hidden mt-3 text-slate-300 text-sm leading-relaxed">不依赖音频文件，用 OscillatorNode 设定波形与频率、GainNode 控制包络，就能合成短促的电子音效。最大的坑是浏览器的自动播放策略：AudioContext 在用户交互前是 suspended 状态，需要在首次点击后 resume 才能出声。</div>
         </li>
         <li class="py-5">
-          <a href="#" class="text-lg font-semibold text-white hover:text-cyan-400">Tailwind CDN 快速搭建个人主页的取舍</a>
+          <button class="blog-toggle w-full text-left text-lg font-semibold text-white hover:text-cyan-400" data-sound="hover">Tailwind CDN 快速搭建个人主页的取舍</button>
           <p class="mt-1 text-slate-400 text-sm">用 Play CDN 快速原型的收益与代价，以及什么场景下应该切换到正式构建流程。</p>
+          <div class="blog-body hidden mt-3 text-slate-300 text-sm leading-relaxed">CDN 引入 Tailwind 无需构建、即写即用，适合快速原型和个人页面；代价是运行时生成样式、缺少 Tree-shaking，且依赖外部 CDN。项目变复杂后应切换到 PostCSS + 构建流程，获得更小体积与更可控的版本。</div>
         </li>
       </ul>
     </section>
 
     <!-- Footer -->
-    <footer class="border-t border-slate-800 py-12 text-center">
+    <footer id="contact" class="border-t border-slate-800 py-12 text-center">
       <div class="flex justify-center gap-6">
         <a href="https://github.com/Jizen-066" aria-label="GitHub" data-sound="hover">
           <svg class="w-6 h-6 fill-current text-slate-400 hover:text-white transition-colors" viewBox="0 0 24 24">

@@ -16,6 +16,7 @@ $mime = @{
   '.png'  = 'image/png'
   '.webm' = 'video/webm'
   '.mp4'  = 'video/mp4'
+  '.mp3'  = 'audio/mpeg'
   '.ico'  = 'image/x-icon'
 }
 

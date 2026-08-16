@@ -60,19 +60,20 @@
     if (!bgm || !btn) return;
 
     bgm.volume = 0.6;
+    bgm.loop = true;
 
+    let started = false;
     const tryPlay = () => {
       const p = bgm.play();
-      if (p && p.catch) p.catch(() => {});
+      if (p && p.then) p.then(() => { started = true; }).catch(() => {});
     };
+
+    // 音频数据可播放后尝试播放
+    bgm.addEventListener('canplay', () => { if (!started) tryPlay(); });
 
     // 尝试自动播放；被浏览器拦截时，首次交互后再播
     tryPlay();
-    const start = () => {
-      tryPlay();
-      document.removeEventListener('pointerdown', start);
-    };
-    document.addEventListener('pointerdown', start);
+    document.addEventListener('pointerdown', () => { if (!started) tryPlay(); }, { once: true });
 
     // 静音切换
     const iconOn = document.getElementById('mute-icon-on');
@@ -86,11 +87,22 @@
     });
   }
 
+  // 文章：点击标题展开/收起正文
+  function bindBlogToggle() {
+    document.querySelectorAll('.blog-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const body = btn.parentElement.querySelector('.blog-body');
+        if (body) body.classList.toggle('hidden');
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     window.Stars.init('stars', { count: 160 });
     initLoader();
     bindSoundEffects();
     initBGM();
+    bindBlogToggle();
     unlockAudioOnFirstInteraction();
   });
 })();
