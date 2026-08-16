@@ -1,13 +1,34 @@
 /**
  * main.js — 页面编排与交互
- * 开屏动画流程、恒星导航、音效/动效事件绑定、模块初始化。
+ * 开屏动画流程、恒星导航（拖拽/惯性/碰撞/粒子）、音效/音乐、模块初始化。
  */
 (function () {
   'use strict';
 
+  // ===== 全局状态 =====
   let startupPlayed = false;
   let currentPanel = null;
 
+  // 恒星物理状态
+  let starBodies = [];
+  let dragging = null;
+  let dragOffset = { dx: 0, dy: 0 };
+  let dragMoved = false;
+  let dragStart = { x: 0, y: 0 };
+  let lastX = 0;
+  let lastY = 0;
+  let W = window.innerWidth;
+  let H = window.innerHeight;
+
+  // 恒星颜色映射（粒子用）
+  const STAR_COLORS = {
+    about: '34,211,238',
+    projects: '96,165,250',
+    blog: '192,132,252',
+    contact: '74,222,128'
+  };
+
+  // ===== 音效 =====
   function playStartupSafe() {
     try {
       window.AudioEngine.playStartup();
@@ -25,7 +46,7 @@
     document.addEventListener('pointerdown', unlock);
   }
 
-  // 开屏流程：load 后播启动音 -> 淡出 loader -> 淡入正文 -> 移除 loader
+  // ===== 开屏流程 =====
   function initLoader() {
     const loader = document.getElementById('loader');
     const content = document.getElementById('content');
@@ -40,21 +61,16 @@
     });
   }
 
-  // 音效事件绑定
+  // ===== 音效事件绑定（悬停等） =====
   function bindSoundEffects() {
     document.querySelectorAll('[data-sound="hover"]').forEach((el) => {
       el.addEventListener('mouseenter', () => {
         try { window.AudioEngine.playHover(); } catch (e) {}
       });
     });
-    document.querySelectorAll('[data-sound="click"]').forEach((el) => {
-      el.addEventListener('click', () => {
-        try { window.AudioEngine.playClick(); } catch (e) {}
-      });
-    });
   }
 
-  // 背景音乐：循环播放，静音按钮切换
+  // ===== 背景音乐：播放/暂停按钮 =====
   function initBGM() {
     const bgm = document.getElementById('bgm');
     const btn = document.getElementById('mute-btn');
@@ -63,32 +79,46 @@
     bgm.volume = 0.6;
     bgm.loop = true;
 
-    let started = false;
-    const tryPlay = () => {
+    const iconOn = document.getElementById('mute-icon-on');   // 有声音
+    const iconOff = document.getElementById('mute-icon-off'); // 静音
+
+    let playing = false;
+    function setPlaying(state) {
+      playing = state;
+      if (iconOn) iconOn.classList.toggle('hidden', !state);
+      if (iconOff) iconOff.classList.toggle('hidden', state);
+    }
+
+    function play() {
       const p = bgm.play();
-      if (p && p.then) p.then(() => { started = true; }).catch(() => {});
-    };
-
-    // 音频数据可播放后尝试播放
-    bgm.addEventListener('canplay', () => { if (!started) tryPlay(); });
-
-    // 尝试自动播放；被浏览器拦截时，首次交互后再播
-    tryPlay();
-    document.addEventListener('pointerdown', () => { if (!started) tryPlay(); }, { once: true });
-
-    // 静音切换
-    const iconOn = document.getElementById('mute-icon-on');
-    const iconOff = document.getElementById('mute-icon-off');
-    btn.addEventListener('click', () => {
-      bgm.muted = !bgm.muted;
-      if (iconOn && iconOff) {
-        iconOn.classList.toggle('hidden', bgm.muted);
-        iconOff.classList.toggle('hidden', !bgm.muted);
+      if (p && p.then) {
+        p.then(() => { setPlaying(true); })
+         .catch((e) => { setPlaying(false); });
+      } else {
+        setPlaying(true);
       }
+    }
+
+    function pause() {
+      bgm.pause();
+      setPlaying(false);
+    }
+
+    setPlaying(false);
+
+    // 尝试自动播放；被浏览器拦截时，音频就绪后或首次交互再试
+    play();
+    bgm.addEventListener('canplay', () => { if (!playing) play(); });
+    document.addEventListener('pointerdown', () => { if (!playing) play(); }, { once: true });
+
+    // 按钮：播放/暂停切换
+    btn.addEventListener('click', () => {
+      if (playing) pause();
+      else play();
     });
   }
 
-  // 文章：点击标题展开/收起正文
+  // ===== 文章：点击标题展开/收起正文 =====
   function bindBlogToggle() {
     document.querySelectorAll('.blog-toggle').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -98,36 +128,7 @@
     });
   }
 
-  // 恒星轨道布局：把恒星均匀分布到圆形轨道上
-  function layoutStars() {
-    const orbit = document.getElementById('orbit');
-    const ring = orbit ? orbit.querySelector('.orbit-ring') : null;
-    const nodes = orbit ? orbit.querySelectorAll('.star-node') : [];
-    if (!orbit || !nodes.length) return;
-
-    const w = orbit.offsetWidth;
-    const h = orbit.offsetHeight;
-    const cx = w / 2;
-    const cy = h / 2;
-    const radius = Math.min(w, h) * 0.34;
-
-    if (ring) {
-      ring.style.width = (radius * 2) + 'px';
-      ring.style.height = (radius * 2) + 'px';
-    }
-
-    const n = nodes.length;
-    nodes.forEach((node, i) => {
-      // 从正上方开始顺时针均匀分布
-      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-      const x = cx + radius * Math.cos(angle);
-      const y = cy + radius * Math.sin(angle);
-      node.style.left = x + 'px';
-      node.style.top = y + 'px';
-    });
-  }
-
-  // 打开面板
+  // ===== 面板开关 =====
   function openPanel(target) {
     const panel = document.getElementById('panel-' + target);
     const layer = document.getElementById('panel-layer');
@@ -140,7 +141,6 @@
 
     layer.classList.add('active');
     panel.classList.remove('hidden');
-    // 双 rAF 确保先恢复 display 再触发过渡
     requestAnimationFrame(() => {
       requestAnimationFrame(() => panel.classList.add('active'));
     });
@@ -148,7 +148,6 @@
     currentPanel = panel;
   }
 
-  // 关闭面板
   function closePanel() {
     if (!currentPanel) return;
     const panel = currentPanel;
@@ -167,19 +166,187 @@
     }, 400);
   }
 
-  // 恒星导航事件
-  function initOrbit() {
-    layoutStars();
+  // ===== 恒星物理 =====
+  function applyPosition(b) {
+    b.el.style.left = b.x + 'px';
+    b.el.style.top = b.y + 'px';
+  }
 
-    document.querySelectorAll('.star-node').forEach((node) => {
-      node.addEventListener('click', () => {
-        const target = node.getAttribute('data-target');
-        if (target) openPanel(target);
-      });
+  function hitTest(mx, my) {
+    for (const b of starBodies) {
+      if (Math.hypot(mx - b.x, my - b.y) <= b.r + 10) return b;
+    }
+    return null;
+  }
+
+  // 两球弹性碰撞 + 位置分离
+  function collide(a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dist = Math.hypot(dx, dy);
+    const minDist = a.r + b.r;
+    if (dist >= minDist || dist === 0) return;
+
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const overlap = minDist - dist;
+    a.x -= nx * overlap / 2;
+    a.y -= ny * overlap / 2;
+    b.x += nx * overlap / 2;
+    b.y += ny * overlap / 2;
+
+    const rel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+    if (rel < 0) {
+      const e = 0.9; // 恢复系数
+      const j = -(1 + e) * rel / 2; // 质量相等
+      a.vx -= j * nx;
+      a.vy -= j * ny;
+      b.vx += j * nx;
+      b.vy += j * ny;
+    }
+  }
+
+  function physicsLoop(pctx) {
+    // 更新位置与速度
+    for (const b of starBodies) {
+      if (b !== dragging) {
+        b.x += b.vx;
+        b.y += b.vy;
+        b.vx *= 0.98; // 摩擦
+        b.vy *= 0.98;
+        if (Math.abs(b.vx) < 0.05) b.vx = 0;
+        if (Math.abs(b.vy) < 0.05) b.vy = 0;
+      }
+      // 边界回弹
+      if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx) * 0.7; }
+      if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.7; }
+      if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy) * 0.7; }
+      if (b.y > H - b.r) { b.y = H - b.r; b.vy = -Math.abs(b.vy) * 0.7; }
+      // 自转
+      b.spin += 0.004 + (Math.abs(b.vx) + Math.abs(b.vy)) * 0.002;
+      applyPosition(b);
+    }
+
+    // 恒星两两碰撞
+    for (let i = 0; i < starBodies.length; i++) {
+      for (let j = i + 1; j < starBodies.length; j++) {
+        collide(starBodies[i], starBodies[j]);
+      }
+    }
+
+    // 粒子渲染
+    if (pctx) {
+      pctx.clearRect(0, 0, W, H);
+      for (const b of starBodies) {
+        for (const p of b.particles) {
+          p.angle += p.speed;
+          const px = b.x + Math.cos(p.angle) * p.orbit;
+          const py = b.y + Math.sin(p.angle) * p.orbit;
+          const alpha = 0.3 + 0.5 * (0.5 + 0.5 * Math.sin(p.angle * 2 + p.phase));
+          pctx.globalAlpha = alpha;
+          pctx.fillStyle = 'rgba(' + b.color + ',' + alpha + ')';
+          pctx.beginPath();
+          pctx.arc(px, py, p.size, 0, Math.PI * 2);
+          pctx.fill();
+        }
+      }
+      pctx.globalAlpha = 1;
+    }
+
+    requestAnimationFrame(() => physicsLoop(pctx));
+  }
+
+  // ===== 恒星导航初始化 =====
+  function initOrbit() {
+    const orbit = document.getElementById('orbit');
+    const ring = orbit ? orbit.querySelector('.orbit-ring') : null;
+    const nodes = orbit ? Array.from(orbit.querySelectorAll('.star-node')) : [];
+    if (!orbit || !nodes.length) return;
+
+    const pc = document.getElementById('star-particles');
+    const pctx = pc ? pc.getContext('2d') : null;
+    function resizeCanvas() {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      if (pc) { pc.width = W; pc.height = H; }
+    }
+    resizeCanvas();
+
+    // 初始化恒星：圆形轨道分布
+    const cx = W / 2;
+    const cy = H / 2;
+    const radius = Math.min(W, H) * 0.34;
+    if (ring) {
+      ring.style.width = (radius * 2) + 'px';
+      ring.style.height = (radius * 2) + 'px';
+    }
+
+    starBodies = nodes.map((node, i) => {
+      const angle = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
+      const target = node.getAttribute('data-target');
+      return {
+        el: node,
+        target,
+        x: cx + radius * Math.cos(angle),
+        y: cy + radius * Math.sin(angle),
+        vx: 0,
+        vy: 0,
+        r: 40,
+        spin: Math.random() * Math.PI * 2,
+        color: STAR_COLORS[target] || '200,200,200',
+        particles: Array.from({ length: 10 }, () => ({
+          orbit: 42 + Math.random() * 55,
+          angle: Math.random() * Math.PI * 2,
+          speed: 0.008 + Math.random() * 0.02,
+          size: 1 + Math.random() * 2.2,
+          phase: Math.random() * Math.PI * 2
+        }))
+      };
+    });
+    starBodies.forEach(applyPosition);
+
+    // 启动物理循环
+    physicsLoop(pctx);
+
+    // 拖拽 / 点击
+    document.addEventListener('pointerdown', (e) => {
+      const b = hitTest(e.clientX, e.clientY);
+      if (!b) return;
+      dragging = b;
+      dragOffset.dx = b.x - e.clientX;
+      dragOffset.dy = b.y - e.clientY;
+      dragMoved = false;
+      dragStart.x = e.clientX;
+      dragStart.y = e.clientY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      b.vx = 0;
+      b.vy = 0;
+      try { window.AudioEngine.playHover(); } catch (err) {}
     });
 
-    document.querySelectorAll('[data-close]').forEach((btn) => {
-      btn.addEventListener('click', closePanel);
+    document.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      dragging.x = e.clientX + dragOffset.dx;
+      dragging.y = e.clientY + dragOffset.dy;
+      dragging.vx = e.clientX - lastX; // 惯性速度
+      dragging.vy = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      if (!dragMoved && Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) > 5) {
+        dragMoved = true;
+      }
+    });
+
+    document.addEventListener('pointerup', () => {
+      if (!dragging) return;
+      const b = dragging;
+      dragging = null;
+      if (!dragMoved) {
+        // 视为点击
+        try { window.AudioEngine.playClick(); } catch (err) {}
+        if (b.target) openPanel(b.target);
+      }
     });
 
     // 点击面板层空白处关闭
@@ -188,9 +355,14 @@
       if (e.target === layer) closePanel();
     });
 
-    window.addEventListener('resize', layoutStars);
+    document.querySelectorAll('[data-close]').forEach((btn) => {
+      btn.addEventListener('click', closePanel);
+    });
+
+    window.addEventListener('resize', resizeCanvas);
   }
 
+  // ===== 启动 =====
   document.addEventListener('DOMContentLoaded', () => {
     window.Stars.init('stars', { count: 160 });
     initLoader();
