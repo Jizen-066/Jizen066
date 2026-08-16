@@ -1,7 +1,7 @@
 # 大文件/媒体资源（本地保留，不纳入版本控制）
 assets/Galaxy.webm
 assets/galaxy.mp4
-assets/Dennis Kuo - Track in Time (Piano Version).mp3
+assets/bgm.mp3
 
 # 系统/编辑器文件
 .DS_Store

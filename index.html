@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jizen · 极客个人主页</title>
-  <meta name="description" content="个人技术主页，展示项目与技术文章" />
+  <meta name="description" content="个人主页，展示项目、文章与分享" />
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <!-- Tailwind CSS Play CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -12,96 +12,222 @@
 </head>
 <body class="bg-[#05070f] text-slate-200 font-mono antialiased overflow-x-hidden">
 
-  <!-- 开屏加载动画层（半透明，透出背后星空画布） -->
+  <!-- 开屏加载动画层 -->
   <div id="loader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#05070f]/90 transition-opacity duration-1000">
     <div class="loader-starfield"></div>
     <div class="mt-6 text-cyan-400 tracking-[0.3em] text-sm animate-pulse">INITIALIZING...</div>
   </div>
 
-  <!-- 银河系视频源（隐藏，绘制到画布以施加引力扭曲） -->
+  <!-- 银河系视频源（正常显示在最底层，浏览器需可见才会解码） -->
   <video id="bg-video" autoplay muted loop playsinline preload="auto" src="assets/Galaxy.webm"></video>
 
-  <!-- 视频背景画布（含引力扭曲，最底层） -->
+  <!-- 视频背景画布（含引力扭曲） -->
   <canvas id="bg-canvas" class="fixed inset-0 -z-30"></canvas>
   <div id="bg-overlay"></div>
 
-  <!-- 动态星空背景画布（叠加在视频上的透明星空） -->
+  <!-- 动态星空背景画布 -->
   <canvas id="stars" class="fixed inset-0 -z-10"></canvas>
 
-  <!-- 正文内容（初始隐藏，加载后淡入） -->
+  <!-- 正文内容 -->
   <main id="content" class="opacity-0 transition-opacity duration-1000">
-    <!-- Hero -->
-    <section id="hero" class="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+
+    <!-- 中心视图：Hero -->
+    <div id="center-view" class="fixed inset-0 z-10 flex flex-col items-center justify-center px-6 text-center pointer-events-none">
       <p class="text-cyan-400 tracking-[0.4em] text-sm mb-4">&gt; hello world, i am</p>
       <h1 class="text-5xl md:text-8xl font-black tracking-tight text-white">Jizen</h1>
       <p class="mt-6 max-w-xl text-slate-400 text-lg">一个兴趣使然的全栈开发者</p>
-      <div class="mt-10 flex gap-4">
-        <a href="#projects" class="btn-primary" data-sound="click">查看项目</a>
-        <a href="#contact" class="btn-secondary" data-sound="click">联系我</a>
-      </div>
-    </section>
+      <p class="mt-12 text-slate-500 text-xs tracking-[0.3em]">— 点击周围的恒星，探索我的世界 —</p>
+    </div>
 
-    <!-- About -->
-    <section id="about" class="max-w-4xl mx-auto px-6 py-24">
-      <h2 class="section-title">关于我</h2>
-      <div class="flex flex-col md:flex-row items-center gap-8">
-        <img src="assets/avatar.jpg" alt="头像" class="w-32 h-32 rounded-full object-cover ring-2 ring-cyan-400/60" />
-        <p class="text-slate-400 leading-relaxed">一名兴趣使然的全栈开发者，喜欢用代码把脑海里的想法变成能跑起来的东西。技术栈覆盖前端、后端与基础设施，热衷折腾新工具、钻研底层原理，也习惯把踩坑经验整理成文章分享出去。</p>
-      </div>
-    </section>
+    <!-- 恒星轨道 -->
+    <div id="orbit" class="fixed inset-0 z-10">
+      <div class="orbit-ring"></div>
+      <button class="star-node" data-target="about" data-sound="click">
+        <span class="star-glow star-about"></span>
+        <span class="star-label">关于我</span>
+      </button>
+      <button class="star-node" data-target="projects" data-sound="click">
+        <span class="star-glow star-projects"></span>
+        <span class="star-label">项目</span>
+      </button>
+      <button class="star-node" data-target="blog" data-sound="click">
+        <span class="star-glow star-blog"></span>
+        <span class="star-label">文章</span>
+      </button>
+      <button class="star-node" data-target="recipe" data-sound="click">
+        <span class="star-glow star-recipe"></span>
+        <span class="star-label">食谱</span>
+      </button>
+      <button class="star-node" data-target="contact" data-sound="click">
+        <span class="star-glow star-contact"></span>
+        <span class="star-label">联系</span>
+      </button>
+    </div>
 
-    <!-- Projects -->
-    <section id="projects" class="max-w-6xl mx-auto px-6 py-24">
-      <h2 class="section-title">项目展示</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <article class="project-card" data-sound="hover">
-          <h3 class="text-xl font-bold text-white">打地鼠</h3>
-          <p class="mt-3 text-slate-400 text-sm">基于 C 语言与 EasyX 图形库的打地鼠小游戏，包含菜单、规则、商店、排行榜、音效与背景音乐等模块。</p>
-          <div class="mt-5 flex gap-3">
-            <a href="https://github.com/Jizen-066/-" class="text-cyan-400 hover:text-cyan-300">GitHub →</a>
+    <!-- 内容面板层 -->
+    <div id="panel-layer" class="fixed inset-0 z-20 items-center justify-center px-4 py-8">
+
+      <!-- 关于我 -->
+      <section class="panel hidden" id="panel-about">
+        <div class="panel-card">
+          <button class="panel-close" data-close aria-label="关闭">✕</button>
+          <h2 class="section-title">关于我</h2>
+          <div class="flex flex-col md:flex-row items-center gap-8">
+            <img src="assets/avatar.jpg" alt="头像" class="w-32 h-32 rounded-full object-cover ring-2 ring-cyan-400/60" />
+            <div class="text-left">
+              <p class="text-slate-300 leading-relaxed">一名兴趣使然的全栈开发者，喜欢用代码把脑海里的想法变成能跑起来的东西。技术栈覆盖前端、后端与基础设施，热衷折腾新工具、钻研底层原理，也习惯把踩坑经验整理成文章分享出去。</p>
+              <p class="mt-4 text-slate-500 text-sm leading-relaxed">从 C 语言写游戏，到 JavaScript 写网页，一路都是"兴趣驱动"。相信最好的学习方式是亲手做一个东西，然后在做的时候把不会的全学会。</p>
+            </div>
           </div>
-        </article>
-      </div>
-    </section>
+        </div>
+      </section>
 
-    <!-- Blog -->
-    <section id="blog" class="max-w-4xl mx-auto px-6 py-24">
-      <h2 class="section-title">技术文章</h2>
-      <ul class="divide-y divide-slate-800">
-        <li class="py-5">
-          <button class="blog-toggle w-full text-left text-lg font-semibold text-white hover:text-cyan-400" data-sound="hover">用原生 Canvas 实现丝滑的星空粒子动画</button>
-          <p class="mt-1 text-slate-400 text-sm">从 requestAnimationFrame 到视差位移与拖尾残影，拆解一个高性能星空背景的完整实现思路。</p>
-          <div class="blog-body hidden mt-3 text-slate-300 text-sm leading-relaxed">核心是用 requestAnimationFrame 驱动渲染循环，把每颗星星按深度 z 分层，鼠标移动时按视差系数反向偏移，再叠加引力聚集与半透明残影实现拖尾。性能上避免每帧创建对象、减少 fillStyle 切换，就能在数百颗粒子上保持 60fps。</div>
-        </li>
-        <li class="py-5">
-          <button class="blog-toggle w-full text-left text-lg font-semibold text-white hover:text-cyan-400" data-sound="hover">Web Audio API 入门：不靠音频文件合成电子音效</button>
-          <p class="mt-1 text-slate-400 text-sm">用 OscillatorNode 和 GainNode 实时合成启动音、悬停音与点击音，并聊聊浏览器自动播放策略的坑。</p>
-          <div class="blog-body hidden mt-3 text-slate-300 text-sm leading-relaxed">不依赖音频文件，用 OscillatorNode 设定波形与频率、GainNode 控制包络，就能合成短促的电子音效。最大的坑是浏览器的自动播放策略：AudioContext 在用户交互前是 suspended 状态，需要在首次点击后 resume 才能出声。</div>
-        </li>
-        <li class="py-5">
-          <button class="blog-toggle w-full text-left text-lg font-semibold text-white hover:text-cyan-400" data-sound="hover">Tailwind CDN 快速搭建个人主页的取舍</button>
-          <p class="mt-1 text-slate-400 text-sm">用 Play CDN 快速原型的收益与代价，以及什么场景下应该切换到正式构建流程。</p>
-          <div class="blog-body hidden mt-3 text-slate-300 text-sm leading-relaxed">CDN 引入 Tailwind 无需构建、即写即用，适合快速原型和个人页面；代价是运行时生成样式、缺少 Tree-shaking，且依赖外部 CDN。项目变复杂后应切换到 PostCSS + 构建流程，获得更小体积与更可控的版本。</div>
-        </li>
-      </ul>
-    </section>
+      <!-- 项目 -->
+      <section class="panel hidden" id="panel-projects">
+        <div class="panel-card">
+          <button class="panel-close" data-close aria-label="关闭">✕</button>
+          <h2 class="section-title">项目展示</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <article class="project-card" data-sound="hover">
+              <h3 class="text-xl font-bold text-white">打地鼠</h3>
+              <p class="mt-3 text-slate-400 text-sm leading-relaxed">基于 C 语言与 EasyX 图形库的打地鼠小游戏，包含菜单、规则、商店、排行榜、音效与背景音乐等模块。</p>
+              <div class="mt-5 flex gap-3">
+                <a href="https://github.com/Jizen-066/-" target="_blank" rel="noopener" class="text-cyan-400 hover:text-cyan-300">GitHub →</a>
+              </div>
+            </article>
+            <article class="project-card" data-sound="hover">
+              <h3 class="text-xl font-bold text-white">这个主页</h3>
+              <p class="mt-3 text-slate-400 text-sm leading-relaxed">极客风个人主页：Canvas 星空 + 视频引力扭曲 + 恒星导航 + Web Audio 音效，纯 HTML/CSS/JS 实现，无任何构建。</p>
+              <div class="mt-5 flex gap-3">
+                <a href="https://github.com/Jizen-066" target="_blank" rel="noopener" class="text-cyan-400 hover:text-cyan-300">GitHub →</a>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
 
-    <!-- Footer -->
-    <footer id="contact" class="border-t border-slate-800 py-12 text-center">
-      <div class="flex justify-center gap-6">
-        <a href="https://github.com/Jizen-066" aria-label="GitHub" data-sound="hover">
-          <svg class="w-6 h-6 fill-current text-slate-400 hover:text-white transition-colors" viewBox="0 0 24 24">
-            <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.78 1.05.78 2.12 0 1.53-.01 2.76-.01 3.14 0 .31.21.67.8.56A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/>
-          </svg>
-        </a>
-        <a href="mailto:3357650083@qq.com" aria-label="Email" data-sound="hover" class="text-slate-400 hover:text-white transition-colors">Email</a>
-      </div>
-      <p class="mt-6 text-slate-600 text-sm">© 2026 Jizen · Built with HTML/CSS/JS</p>
-    </footer>
+      <!-- 文章 -->
+      <section class="panel hidden" id="panel-blog">
+        <div class="panel-card">
+          <button class="panel-close" data-close aria-label="关闭">✕</button>
+          <h2 class="section-title">文章 · 分享</h2>
+          <ul class="divide-y divide-slate-800">
+
+            <li class="py-6">
+              <button class="blog-toggle w-full text-left text-lg font-semibold text-white hover:text-cyan-400" data-sound="hover">用原生 Canvas 实现丝滑的星空粒子动画</button>
+              <p class="mt-2 text-slate-500 text-sm">从 requestAnimationFrame 到视差位移、引力聚集与拖尾残影，拆解一个高性能星空背景的完整实现思路。</p>
+              <div class="blog-body hidden mt-4 text-slate-300 text-sm leading-7">
+                <p>这篇文章拆解我用原生 Canvas 做星空背景的完整思路，也是这个主页星空层的由来。</p>
+                <p class="mt-3">首先是渲染循环：用 requestAnimationFrame 而不是 setInterval，因为它与显示器刷新率同步，能避免掉帧和撕裂。每一帧固定做三件事——更新状态、清空画布、重绘粒子。</p>
+                <p class="mt-3">粒子建模是核心。每颗星星用一个对象描述，包含位置 x/y、深度 z（0 到 1）、大小和亮度。深度是关键：z 越大，星星离"镜头"越近，看起来越大越亮，视差位移也越明显。</p>
+                <p class="mt-3">视差位移的原理很简单：记录鼠标位置，让每颗星相对屏幕中心，按 z 的大小反向偏移，公式大致是 offset = (mouseX - centerX) * (0.05 + z * 0.15)。z 越大的星偏移越多，就产生了远近分层、随鼠标移动的立体感。</p>
+                <p class="mt-3">引力聚集是后来加的效果：在鼠标周围定义一个半径，半径内的星星受到指向鼠标的力，位置向鼠标靠拢。距离越近力越强，但要在接近中心时衰减，避免全部叠成一个点。</p>
+                <p class="mt-3">拖尾残影是让画面"丝滑"的秘诀。与其每帧用 clearRect 彻底清空，不如用半透明色 fillRect 覆盖一层，让上一帧的星星慢慢淡出，形成拖尾。代价是要控制好透明度：太淡残影过长，太浓就接近直接清屏。</p>
+                <p class="mt-3">性能上我总结了几条经验：避免在循环里创建新对象，粒子数组提前建好；尽量减少 fillStyle 和 globalAlpha 的切换；用离屏 Canvas 预渲染星点纹理，主循环里只 drawImage，比每颗星都 arc 一次快得多。这套方案在几百颗星上保持 60fps 毫无压力。</p>
+              </div>
+            </li>
+
+            <li class="py-6">
+              <button class="blog-toggle w-full text-left text-lg font-semibold text-white hover:text-cyan-400" data-sound="hover">Web Audio API 入门：不靠音频文件合成电子音效</button>
+              <p class="mt-2 text-slate-500 text-sm">用 OscillatorNode 和 GainNode 实时合成启动音、悬停音与点击音，并聊聊浏览器自动播放策略的坑。</p>
+              <div class="blog-body hidden mt-4 text-slate-300 text-sm leading-7">
+                <p>Web Audio API 让浏览器具备了实时合成音频的能力，不需要任何音频文件。整个合成流程是一条"节点链"：OscillatorNode 产生波形，GainNode 控制音量包络，最后连接到 destination（扬声器）。</p>
+                <p class="mt-3">先创建 AudioContext，这是所有音频的入口。然后创建一个 OscillatorNode，设定 type（正弦 sine、方波 square、锯齿 sawtooth、三角 triangle）和 frequency（单位 Hz）。频率决定音高：440Hz 是标准 A 音，翻倍就是一个八度。</p>
+                <p class="mt-3">音量的起止决定音效质感。如果振荡器直接响，声音会突然开始、突然结束，很生硬。用 GainNode 的 gain 做包络：从 0 快速升到峰值（attack），再指数衰减到 0（release），就能得到"叮"一声的短促音效。用 gain.exponentialRampToValueAtTime 做指数曲线会更自然。</p>
+                <p class="mt-3">悬停音和点击音的区别主要在频率和时长：悬停音频率高、时长短、音量小；点击音频率低一点、时长稍长、音量适中。启动音可以做一段上行音阶，用几个不同频率的振荡器依次触发，营造"开机"的感觉。</p>
+                <p class="mt-3">最大的坑是浏览器的自动播放策略。为了防止网页自动播放吵人的声音，Chrome 规定 AudioContext 在用户交互之前处于 suspended 状态，此时即使创建了节点也不出声。解决办法是监听一次 pointerdown 或 keydown，在回调里调用 ctx.resume()，之后所有音效就正常了。这也是很多网页第一次点击后才"激活"声音的原因。</p>
+              </div>
+            </li>
+
+            <li class="py-6">
+              <button class="blog-toggle w-full text-left text-lg font-semibold text-white hover:text-cyan-400" data-sound="hover">从打地鼠到个人主页：我的编程入门之路</button>
+              <p class="mt-2 text-slate-500 text-sm">从第一个 EasyX 小游戏到这个星空主页，聊聊我踩过的坑、学到的东西，以及给初学者的几点建议。</p>
+              <div class="blog-body hidden mt-4 text-slate-300 text-sm leading-7">
+                <p>我的第一个像样的作品，是一个用 C 语言和 EasyX 图形库写的打地鼠游戏。那时候我对"程序"的理解还停留在命令行黑框，直到发现 EasyX 能在窗口里画圆、画方、显示图片、播放音效，才第一次觉得"原来我能做出一个别人可以玩的东西"。</p>
+                <p class="mt-3">那个打地鼠游戏现在回头看很粗糙，但它教会我的东西比任何教程都多：菜单、规则、商店、排行榜、音效、背景音乐，每一个模块都是一次完整的"需求 → 设计 → 实现 → 调试"循环。尤其是音效和 BGM，让我第一次理解了"事件驱动"——玩家点一下鼠标，程序要响应：播放声音、更新分数、刷新画面。</p>
+                <p class="mt-3">后来我转向前端，最大的感受是"反馈"变得更快了。改一行 CSS 刷新页面立刻看到效果，这种即时反馈对学习太重要了。我开始用 Canvas 做动画、用 Web Audio 做音效，慢慢把这些零散的知识拼成一个完整的页面——也就是你现在看到的这个主页。</p>
+                <p class="mt-3">给初学者几点真心话：第一，先做出来，再做好，粗糙的成品比精致的空想强一百倍；第二，遇到 bug 别急着问人，先自己读报错、打断点、缩小范围，调试能力是练出来的；第三，保持"折腾"的心态，很多技能不是学出来的，是玩出来的。</p>
+              </div>
+            </li>
+
+          </ul>
+        </div>
+      </section>
+
+      <!-- 食谱 -->
+      <section class="panel hidden" id="panel-recipe">
+        <div class="panel-card">
+          <button class="panel-close" data-close aria-label="关闭">✕</button>
+          <h2 class="section-title">食谱 · 西红柿炒鸡蛋</h2>
+
+          <div class="mb-6 flex flex-wrap gap-2">
+            <span class="text-xs px-3 py-1 rounded-full border border-orange-400/40 text-orange-300">酸甜下饭</span>
+            <span class="text-xs px-3 py-1 rounded-full border border-slate-600 text-slate-400">家常菜</span>
+            <span class="text-xs px-3 py-1 rounded-full border border-slate-600 text-slate-400">约 15 分钟</span>
+          </div>
+
+          <h3 class="text-white font-bold text-lg mb-3">🥬 食材</h3>
+          <ul class="text-slate-300 text-sm leading-7 mb-8 grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+            <li>西红柿 2 个</li>
+            <li>鸡蛋 3 个</li>
+            <li>白砂糖 约 1 大勺</li>
+            <li>盐 小半勺（甜口盐要少，靠糖提鲜）</li>
+            <li>蒜末 2～3 瓣</li>
+            <li>番茄酱 1 勺（可选）</li>
+            <li>水淀粉（1 小勺淀粉 + 2 勺水，可选，勾芡挂汁）</li>
+            <li>葱花 少许、食用油 适量</li>
+          </ul>
+
+          <h3 class="text-white font-bold text-lg mb-3">🍳 步骤</h3>
+          <ol class="text-slate-300 text-sm leading-7 space-y-4">
+            <li><span class="text-cyan-400 font-semibold">1. 番茄去皮出沙</span>：顶部划十字 → 开水烫 30～60 秒 → 撕皮 → 去蒂切滚刀小块（块别太碎，不然汁水过酸）。</li>
+            <li><span class="text-cyan-400 font-semibold">2. 打蛋</span>：鸡蛋 + 少许盐 + 1 小勺清水（或几滴料酒）→ 充分打散到起细泡（加水/酒是蛋嫩的关键）。</li>
+            <li><span class="text-cyan-400 font-semibold">3. 滑蛋</span>：热锅多放点油，七成热下蛋液，底部凝固后用铲子从外向内推成大块，炒到 7～8 分熟（还带点湿润）立刻盛出，千万别炒老。</li>
+            <li><span class="text-cyan-400 font-semibold">4. 炒番茄</span>：锅留底油，蒜末爆香 → 下番茄中大火翻炒，用铲子不停按压逼出红沙汁 → 炒到软烂出浓汁。</li>
+            <li><span class="text-cyan-400 font-semibold">5. 调味</span>：加糖 + 盐（甜口这时把糖全下），喜欢浓汁加 1 勺番茄酱，翻匀。</li>
+            <li><span class="text-cyan-400 font-semibold">6. 回锅合炒</span>：倒回鸡蛋，中火翻 30 秒～1 分钟让蛋裹满汁。想拌饭绝杀就淋水淀粉勾薄芡，汤汁瞬间变鎏金浓稠。</li>
+            <li><span class="text-cyan-400 font-semibold">7. 出锅</span>：撒葱花，关火。</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- 联系 -->
+      <section class="panel hidden" id="panel-contact">
+        <div class="panel-card">
+          <button class="panel-close" data-close aria-label="关闭">✕</button>
+          <h2 class="section-title">联系我</h2>
+          <div class="space-y-4 text-left">
+            <a href="https://github.com/Jizen-066" target="_blank" rel="noopener" class="flex items-center gap-4 p-4 rounded-lg border border-slate-700 hover:border-cyan-400/60 hover:bg-slate-800/40 transition-colors group">
+              <span class="text-cyan-400 text-xl w-8 text-center">⌥</span>
+              <div>
+                <div class="text-slate-500 text-xs mb-1">GitHub</div>
+                <div class="text-white group-hover:text-cyan-300 transition-colors">github.com/Jizen-066</div>
+              </div>
+            </a>
+            <a href="mailto:3357650083@qq.com" class="flex items-center gap-4 p-4 rounded-lg border border-slate-700 hover:border-cyan-400/60 hover:bg-slate-800/40 transition-colors group">
+              <span class="text-cyan-400 text-xl w-8 text-center">@</span>
+              <div>
+                <div class="text-slate-500 text-xs mb-1">邮箱</div>
+                <div class="text-white group-hover:text-cyan-300 transition-colors">3357650083@qq.com</div>
+              </div>
+            </a>
+            <a href="tel:19876579069" class="flex items-center gap-4 p-4 rounded-lg border border-slate-700 hover:border-cyan-400/60 hover:bg-slate-800/40 transition-colors group">
+              <span class="text-cyan-400 text-xl w-8 text-center">☎</span>
+              <div>
+                <div class="text-slate-500 text-xs mb-1">电话</div>
+                <div class="text-white group-hover:text-cyan-300 transition-colors">19876579069</div>
+              </div>
+            </a>
+          </div>
+          <p class="mt-8 text-slate-600 text-sm">© 2026 Jizen · Built with HTML/CSS/JS</p>
+        </div>
+      </section>
+
+    </div>
   </main>
 
   <!-- 背景音乐（循环播放，可静音） -->
-  <audio id="bgm" loop preload="auto" src="assets/Dennis Kuo - Track in Time (Piano Version).mp3"></audio>
+  <audio id="bgm" loop preload="auto" src="assets/bgm.mp3"></audio>
 
   <!-- 音乐静音切换按钮 -->
   <button id="mute-btn" class="fixed bottom-5 right-5 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/30 bg-slate-900/60 text-cyan-300 backdrop-blur transition-colors hover:border-cyan-300 hover:text-white" aria-label="切换音乐" title="音乐开/关">
