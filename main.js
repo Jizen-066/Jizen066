@@ -399,6 +399,7 @@
 
   // ===== 启动 =====
   document.addEventListener('DOMContentLoaded', () => {
+    window.Galaxy.init();
     window.Stars.init('stars', { count: 160 });
     initLoader();
     bindSoundEffects();

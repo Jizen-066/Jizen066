@@ -1,38 +1,27 @@
 /**
- * stars.js — 动态星空背景引擎
+ * stars.js — 动态星空粒子层
  * 基于 Canvas 2D + requestAnimationFrame。
- * 特性：
- *   - 银河系视频绘制到背景画布，鼠标周围施加径向引力扭曲（引力透镜效果）；
- *   - 星空粒子叠加在视频之上，具备视差位移与引力聚集。
+ * 在星系背景之上叠加一层可交互的星空粒子（视差位移、引力聚集、闪烁）。
  */
 (function () {
   'use strict';
 
   const Stars = {
-    canvas: null,       // 星空粒子画布
+    canvas: null,
     ctx: null,
-    bgCanvas: null,     // 视频背景画布（含引力扭曲）
-    bgCtx: null,
-    video: null,
     stars: [],
     mouse: { x: 0, y: 0, active: false },
     width: 0,
     height: 0,
     count: 160,
-    warpRadius: 150,     // 引力扭曲半径
-    warpStrength: 0.12,  // 引力扭曲强度
-    warpLut: null,       // 预计算的扭曲像素重映射表
     rafId: null,
+    dragOffset: { x: 0, y: 0 },
 
     init(canvasId, options) {
       const opts = options || {};
       this.count = opts.count || 160;
       this.canvas = document.getElementById(canvasId);
       this.ctx = this.canvas.getContext('2d');
-      this.bgCanvas = document.getElementById('bg-canvas');
-      this.bgCtx = this.bgCanvas.getContext('2d');
-      this.video = document.getElementById('bg-video');
-      this.video.playbackRate = 1.25; // 背景视频 1.25 倍速
 
       this.onResize = () => this.resize();
       this.onMove = (e) => {
@@ -54,8 +43,6 @@
     resize() {
       this.width = this.canvas.width = window.innerWidth;
       this.height = this.canvas.height = window.innerHeight;
-      this.bgCanvas.width = this.width;
-      this.bgCanvas.height = this.height;
     },
 
     spawn() {
@@ -77,7 +64,6 @@
     loop() {
       const step = () => {
         this.update();
-        this.drawBackground();
         this.drawStars();
         this.rafId = requestAnimationFrame(step);
       };
@@ -93,8 +79,12 @@
       for (const s of this.stars) {
         // 视差：鼠标相对屏幕中心的偏移，深度越大位移越大，方向相反
         const parallax = 0.05 + s.z * 0.15;
-        s.x = s.baseX - mx * parallax;
-        s.y = s.baseY - my * parallax;
+        s.x = s.baseX - mx * parallax + this.dragOffset.x;
+        s.y = s.baseY - my * parallax + this.dragOffset.y;
+
+        // 拖拽产生的整体位移超出屏幕时循环回绕，保证星空连续
+        s.x = ((s.x % this.width) + this.width) % this.width;
+        s.y = ((s.y % this.height) + this.height) % this.height;
 
         // 引力聚集：鼠标附近星星向鼠标靠拢
         if (this.mouse.active) {
@@ -113,101 +103,7 @@
       }
     },
 
-    // 绘制视频背景：把视频帧画到背景画布，再对鼠标周围做引力扭曲
-    drawBackground() {
-      const bg = this.bgCtx;
-      if (this.video && this.video.readyState >= 2) {
-        const vw = this.video.videoWidth;
-        const vh = this.video.videoHeight;
-        if (vw && vh) {
-          // cover 裁剪：等比放大填满画布并居中裁剪
-          const scale = Math.max(this.width / vw, this.height / vh);
-          const sw = this.width / scale;
-          const sh = this.height / scale;
-          const sx = (vw - sw) / 2;
-          const sy = (vh - sh) / 2;
-          bg.drawImage(this.video, sx, sy, sw, sh, 0, 0, this.width, this.height);
-        } else {
-          bg.fillStyle = '#05070f';
-          bg.fillRect(0, 0, this.width, this.height);
-        }
-      } else {
-        bg.fillStyle = '#05070f';
-        bg.fillRect(0, 0, this.width, this.height);
-      }
-
-      if (this.mouse.active) {
-        this.applyWarp();
-      }
-    },
-
-    // 预计算径向扭曲的像素重映射表（映射只与相对中心的偏移有关，可复用）
-    buildWarpLut() {
-      const R = this.warpRadius;
-      const S = R * 2;
-      const lut = new Int32Array(S * S);
-      for (let y = 0; y < S; y++) {
-        for (let x = 0; x < S; x++) {
-          const dx = x - R;
-          const dy = y - R;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          let idx = y * S + x; // 默认保持原像素
-          if (dist < R && dist > 0) {
-            const force = (1 - dist / R) * this.warpStrength;
-            const ix = x + dx * force;
-            const iy = y + dy * force;
-            const px = ix < 0 ? 0 : (ix >= S ? S - 1 : ix | 0);
-            const py = iy < 0 ? 0 : (iy >= S ? S - 1 : iy | 0);
-            idx = py * S + px;
-          }
-          lut[y * S + x] = idx;
-        }
-      }
-      this.warpLut = lut;
-    },
-
-    // 径向引力扭曲：鼠标周围图像向鼠标收缩，模拟引力透镜
-    applyWarp() {
-      const bg = this.bgCtx;
-      const R = this.warpRadius;
-      const S = R * 2;
-      const mx = this.mouse.x;
-      const my = this.mouse.y;
-
-      // 靠近画布边缘时不扭曲，避免区域裁剪带来的映射错位
-      if (mx < R || my < R || mx > this.width - R || my > this.height - R) return;
-
-      if (!this.warpLut) this.buildWarpLut();
-      const lut = this.warpLut;
-
-      const sx = Math.floor(mx - R);
-      const sy = Math.floor(my - R);
-
-      let imgData;
-      try {
-        imgData = bg.getImageData(sx, sy, S, S);
-      } catch (e) {
-        // 视频未同源（如 file:// 直接打开）时 canvas 会被污染，跳过扭曲
-        return;
-      }
-      const data = imgData.data;
-      const copy = new Uint8ClampedArray(data);
-
-      for (let i = 0; i < S * S; i++) {
-        const si = lut[i];
-        if (si !== i) {
-          const di = i * 4;
-          const s = si * 4;
-          data[di] = copy[s];
-          data[di + 1] = copy[s + 1];
-          data[di + 2] = copy[s + 2];
-        }
-      }
-
-      bg.putImageData(imgData, sx, sy);
-    },
-
-    // 绘制星空粒子（透明画布，叠加在视频背景之上）
+    // 绘制星空粒子（透明画布，叠加在星系背景之上）
     drawStars() {
       const ctx = this.ctx;
       ctx.clearRect(0, 0, this.width, this.height);
@@ -233,6 +129,12 @@
         ctx.arc(this.mouse.x, this.mouse.y, 90, 0, Math.PI * 2);
         ctx.fill();
       }
+    },
+
+    // 拖拽转动星空（由 galaxy.js 调用）：累积整体位移，模拟视角转动
+    pan(dx, dy) {
+      this.dragOffset.x += dx * 0.4;
+      this.dragOffset.y += dy * 0.4;
     },
 
     destroy() {

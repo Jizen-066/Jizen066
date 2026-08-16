@@ -109,27 +109,13 @@ body { background: #05070f; }
   100% { transform: scale(2.5); opacity: 0; }
 }
 
-/* ===== 视频背景 ===== */
-#bg-video {
+/* ===== 程序化星系背景（Three.js canvas） ===== */
+#galaxy-canvas {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
   z-index: -40;
-}
-#bg-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -30;
-}
-#bg-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: -20;
-  background: rgba(5, 7, 15, 0.5);
 }
 
 /* ===== 恒星导航 ===== */
@@ -204,12 +190,18 @@ body { background: #05070f; }
 .star-label {
   font-size: 0.75rem;
   letter-spacing: 0.12em;
-  color: #94a3b8;
-  text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+  color: #e2e8f0;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 1), 0 0 3px rgba(0, 0, 0, 1);
   transition: color 0.2s ease;
   white-space: nowrap;
 }
 .star-node:hover .star-label { color: #fff; }
+
+/* 首页中心文字阴影，增强在亮星系上的可读性 */
+#center-view h1,
+#center-view p {
+  text-shadow: 0 0 12px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 1);
+}
 
 /* ===== 恒星点击聚焦光斑（打开面板时放大铺满、关闭时缩回） ===== */
 .star-focus {
