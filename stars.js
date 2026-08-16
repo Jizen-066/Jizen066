@@ -20,7 +20,7 @@
     height: 0,
     count: 160,
     warpRadius: 150,     // 引力扭曲半径
-    warpStrength: 0.32,  // 引力扭曲强度
+    warpStrength: 0.12,  // 引力扭曲强度
     rafId: null,
 
     init(canvasId, options) {
