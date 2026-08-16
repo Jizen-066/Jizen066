@@ -163,7 +163,7 @@ body { background: #05070f; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   background: none;
   border: none;
   cursor: pointer;
@@ -172,37 +172,33 @@ body { background: #05070f; }
   transition: transform 0.25s ease;
 }
 .star-node:hover {
-  transform: translate(-50%, -50%) scale(1.18);
+  transform: translate(-50%, -50%) scale(1.16);
 }
 
+/* 恒星本体：白热核心 + 主色过渡，边缘完全模糊、无硬边 */
 .star-glow {
   display: block;
-  width: 72px;
-  height: 72px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
-  animation: star-pulse 3s ease-in-out infinite;
-}
-/* 白热核心 + 主色过渡 + 无硬边 + 多层光晕 */
-.star-about {
-  background: radial-gradient(circle, #fff 0%, #cffafe 18%, #0891b2 45%, rgba(8,145,178,0.15) 70%, transparent 72%);
-  box-shadow: 0 0 16px #22d3ee, 0 0 40px #0891b2, 0 0 90px rgba(8,145,178,0.55);
-}
-.star-projects {
-  background: radial-gradient(circle, #fff 0%, #dbeafe 18%, #2563eb 45%, rgba(37,99,235,0.15) 70%, transparent 72%);
-  box-shadow: 0 0 16px #60a5fa, 0 0 40px #2563eb, 0 0 90px rgba(37,99,235,0.55);
-}
-.star-blog {
-  background: radial-gradient(circle, #fff 0%, #f3e8ff 18%, #9333ea 45%, rgba(147,51,234,0.15) 70%, transparent 72%);
-  box-shadow: 0 0 16px #c084fc, 0 0 40px #9333ea, 0 0 90px rgba(147,51,234,0.55);
-}
-.star-contact {
-  background: radial-gradient(circle, #fff 0%, #dcfce7 18%, #16a34a 45%, rgba(22,163,74,0.15) 70%, transparent 72%);
-  box-shadow: 0 0 16px #4ade80, 0 0 40px #16a34a, 0 0 90px rgba(22,163,74,0.55);
 }
 
-@keyframes star-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.12); }
+/* 白热核心 + 主色过渡 + 无硬边 + 多层光晕（更亮、更大、更柔） */
+.star-about {
+  background: radial-gradient(circle, #ffffff 0%, #e0fbff 16%, #7ce7f8 36%, #0891b2 60%, rgba(8,145,178,0.28) 82%, transparent 100%);
+  box-shadow: 0 0 26px rgba(103,232,249,0.95), 0 0 64px rgba(34,211,238,0.7), 0 0 130px rgba(8,145,178,0.5), 0 0 220px rgba(8,145,178,0.3);
+}
+.star-projects {
+  background: radial-gradient(circle, #ffffff 0%, #e6efff 16%, #93c5fd 36%, #2563eb 60%, rgba(37,99,235,0.28) 82%, transparent 100%);
+  box-shadow: 0 0 26px rgba(147,197,253,0.95), 0 0 64px rgba(96,165,250,0.7), 0 0 130px rgba(37,99,235,0.5), 0 0 220px rgba(37,99,235,0.3);
+}
+.star-blog {
+  background: radial-gradient(circle, #ffffff 0%, #fefce8 16%, #fde047 36%, #eab308 60%, rgba(234,179,8,0.28) 82%, transparent 100%);
+  box-shadow: 0 0 26px rgba(253,224,71,0.95), 0 0 64px rgba(250,204,21,0.7), 0 0 130px rgba(234,179,8,0.5), 0 0 220px rgba(234,179,8,0.3);
+}
+.star-contact {
+  background: radial-gradient(circle, #ffffff 0%, #f8fafc 16%, #e2e8f0 36%, #cbd5e1 60%, rgba(226,232,240,0.28) 82%, transparent 100%);
+  box-shadow: 0 0 26px rgba(255,255,255,0.95), 0 0 64px rgba(226,232,240,0.7), 0 0 130px rgba(203,213,225,0.5), 0 0 220px rgba(203,213,225,0.3);
 }
 
 .star-label {
@@ -214,6 +210,21 @@ body { background: #05070f; }
   white-space: nowrap;
 }
 .star-node:hover .star-label { color: #fff; }
+
+/* ===== 恒星点击聚焦光斑（打开面板时放大铺满、关闭时缩回） ===== */
+.star-focus {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  z-index: 18;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease;
+}
 
 /* ===== 内容面板 ===== */
 .panel {
@@ -236,9 +247,18 @@ body { background: #05070f; }
   overflow-y: auto;
   padding: 2.5rem;
   border-radius: 1rem;
-  background: rgba(10, 14, 26, 0.82);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(34, 211, 238, 0.15);
+  /* 背景取当前恒星颜色，半透明 + 模糊，透出后方背景 */
+  background: rgba(var(--panel-color, 34, 211, 238), 0.22);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(var(--panel-color, 34, 211, 238), 0.32);
+}
+
+/* 文章日期 */
+.blog-date {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: #64748b;
 }
 
 .panel-close {

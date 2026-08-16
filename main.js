@@ -19,6 +19,7 @@
   let lastY = 0;
   let W = window.innerWidth;
   let H = window.innerHeight;
+  let focusOrigin = { x: 0, y: 0 };
 
   // 恒星颜色映射（粒子用）
   const STAR_COLORS = {
@@ -122,30 +123,67 @@
   function bindBlogToggle() {
     document.querySelectorAll('.blog-toggle').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const body = btn.parentElement.querySelector('.blog-body');
+        const li = btn.closest('li');
+        const body = li ? li.querySelector('.blog-body') : null;
         if (body) body.classList.toggle('hidden');
       });
     });
   }
 
-  // ===== 面板开关 =====
+  // ===== 面板开关（点击恒星：移动到中心并放大铺满窗口） =====
+  function focusOverlay() {
+    return document.getElementById('star-focus');
+  }
+
   function openPanel(target) {
     const panel = document.getElementById('panel-' + target);
     const layer = document.getElementById('panel-layer');
     const center = document.getElementById('center-view');
     const orbit = document.getElementById('orbit');
+    const focus = focusOverlay();
     if (!panel || !layer) return;
+
+    const body = starBodies.find((b) => b.target === target);
+
+    // 面板背景取当前恒星颜色
+    panel.style.setProperty('--panel-color', STAR_COLORS[target] || '34,211,238');
 
     center.classList.add('hidden');
     orbit.classList.add('hidden');
-
     layer.classList.add('active');
-    panel.classList.remove('hidden');
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => panel.classList.add('active'));
-    });
+
+    // 复制恒星外观到聚焦光斑，并让它从恒星位置放大铺满窗口
+    if (focus && body) {
+      const glow = body.el.querySelector('.star-glow');
+      const cs = glow ? getComputedStyle(glow) : null;
+      if (cs) {
+        focus.style.background = cs.backgroundImage;
+        focus.style.boxShadow = cs.boxShadow;
+      }
+      focusOrigin = { x: body.x, y: body.y };
+
+      const r = 46; // 光斑半径（92px 的一半）
+      const from = 'translate(' + (body.x - r) + 'px, ' + (body.y - r) + 'px) scale(1)';
+      const to = 'translate(' + (W / 2 - r) + 'px, ' + (H / 2 - r) + 'px) scale(' +
+        Math.max(Math.hypot(W, H) / 92, 1) + ')';
+
+      focus.style.transition = 'none';
+      focus.style.transform = from;
+      focus.style.opacity = '1';
+      void focus.offsetWidth; // 强制回流，确保起始状态生效
+      focus.style.transition = '';
+      focus.style.transform = to;
+    }
 
     currentPanel = panel;
+
+    // 光斑展开到一半左右再淡入内容
+    setTimeout(() => {
+      panel.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => panel.classList.add('active'));
+      });
+    }, 260);
   }
 
   function closePanel() {
@@ -154,22 +192,32 @@
     const layer = document.getElementById('panel-layer');
     const center = document.getElementById('center-view');
     const orbit = document.getElementById('orbit');
+    const focus = focusOverlay();
     currentPanel = null;
 
     panel.classList.remove('active');
     layer.classList.remove('active');
 
+    // 光斑缩回恒星原来的位置并淡出
+    if (focus) {
+      const r = 46;
+      focus.style.transform = 'translate(' + (focusOrigin.x - r) + 'px, ' + (focusOrigin.y - r) + 'px) scale(1)';
+      focus.style.opacity = '0';
+    }
+
     setTimeout(() => {
       panel.classList.add('hidden');
       center.classList.remove('hidden');
       orbit.classList.remove('hidden');
-    }, 400);
+    }, 600);
   }
 
   // ===== 恒星物理 =====
   function applyPosition(b) {
     b.el.style.left = b.x + 'px';
     b.el.style.top = b.y + 'px';
+    const glow = b.el.querySelector('.star-glow');
+    if (glow) glow.style.transform = 'rotate(' + b.spin.toFixed(4) + 'rad)';
   }
 
   function hitTest(mx, my) {
@@ -242,15 +290,13 @@
           p.angle += p.speed;
           const px = b.x + Math.cos(p.angle) * p.orbit;
           const py = b.y + Math.sin(p.angle) * p.orbit;
-          const alpha = 0.3 + 0.5 * (0.5 + 0.5 * Math.sin(p.angle * 2 + p.phase));
-          pctx.globalAlpha = alpha;
-          pctx.fillStyle = 'rgba(' + b.color + ',' + alpha + ')';
+          const alpha = 0.45 + 0.55 * Math.abs(Math.sin(p.angle * 2 + p.phase));
+          pctx.fillStyle = 'rgba(' + b.color + ',' + alpha.toFixed(3) + ')';
           pctx.beginPath();
           pctx.arc(px, py, p.size, 0, Math.PI * 2);
           pctx.fill();
         }
       }
-      pctx.globalAlpha = 1;
     }
 
     requestAnimationFrame(() => physicsLoop(pctx));
@@ -294,11 +340,11 @@
         r: 40,
         spin: Math.random() * Math.PI * 2,
         color: STAR_COLORS[target] || '200,200,200',
-        particles: Array.from({ length: 10 }, () => ({
-          orbit: 42 + Math.random() * 55,
+        particles: Array.from({ length: 16 }, () => ({
+          orbit: 46 + Math.random() * 60,
           angle: Math.random() * Math.PI * 2,
-          speed: 0.008 + Math.random() * 0.02,
-          size: 1 + Math.random() * 2.2,
+          speed: 0.01 + Math.random() * 0.03,
+          size: 1 + Math.random() * 2.6,
           phase: Math.random() * Math.PI * 2
         }))
       };
