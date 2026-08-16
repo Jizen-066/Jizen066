@@ -19,7 +19,7 @@
   </div>
 
   <!-- 银河系视频背景（循环播放） -->
-  <video id="bg-video" autoplay muted loop playsinline preload="auto" src="assets/galaxy.mp4"></video>
+  <video id="bg-video" autoplay muted loop playsinline preload="auto" src="assets/Galaxy.webm"></video>
   <div id="bg-overlay"></div>
 
   <!-- 动态星空背景画布（叠加在视频上的透明星空） -->
@@ -43,7 +43,7 @@
       <h2 class="section-title">关于我</h2>
       <div class="flex flex-col md:flex-row items-center gap-8">
         <img src="assets/avatar.jpg" alt="头像" class="w-32 h-32 rounded-full object-cover ring-2 ring-cyan-400/60" />
-        <p class="text-slate-400 leading-relaxed">这里写一段个人介绍：你的技术栈、关注方向、以及你在做的事情。保持简洁真诚。</p>
+        <p class="text-slate-400 leading-relaxed">一名兴趣使然的全栈开发者，喜欢用代码把脑海里的想法变成能跑起来的东西。技术栈覆盖前端、后端与基础设施，热衷折腾新工具、钻研底层原理，也习惯把踩坑经验整理成文章分享出去。</p>
       </div>
     </section>
 
@@ -55,7 +55,7 @@
           <h3 class="text-xl font-bold text-white">项目名称</h3>
           <p class="mt-3 text-slate-400 text-sm">项目简介：一句话说明它解决了什么问题、用了什么技术。</p>
           <div class="mt-5 flex gap-3">
-            <a href="https://github.com/yourname" class="text-cyan-400 hover:text-cyan-300">GitHub →</a>
+            <a href="https://github.com/Jizen-066/Jizen066" class="text-cyan-400 hover:text-cyan-300">GitHub →</a>
             <a href="https://example.com" class="text-cyan-400 hover:text-cyan-300">演示 →</a>
           </div>
         </article>
@@ -63,7 +63,7 @@
           <h3 class="text-xl font-bold text-white">项目名称</h3>
           <p class="mt-3 text-slate-400 text-sm">项目简介：一句话说明它解决了什么问题、用了什么技术。</p>
           <div class="mt-5 flex gap-3">
-            <a href="https://github.com/yourname" class="text-cyan-400 hover:text-cyan-300">GitHub →</a>
+            <a href="https://github.com/Jizen-066/Jizen066" class="text-cyan-400 hover:text-cyan-300">GitHub →</a>
             <a href="https://example.com" class="text-cyan-400 hover:text-cyan-300">演示 →</a>
           </div>
         </article>
@@ -71,7 +71,7 @@
           <h3 class="text-xl font-bold text-white">项目名称</h3>
           <p class="mt-3 text-slate-400 text-sm">项目简介：一句话说明它解决了什么问题、用了什么技术。</p>
           <div class="mt-5 flex gap-3">
-            <a href="https://github.com/yourname" class="text-cyan-400 hover:text-cyan-300">GitHub →</a>
+            <a href="https://github.com/Jizen-066/Jizen066" class="text-cyan-400 hover:text-cyan-300">GitHub →</a>
             <a href="https://example.com" class="text-cyan-400 hover:text-cyan-300">演示 →</a>
           </div>
         </article>
@@ -83,16 +83,16 @@
       <h2 class="section-title">技术文章</h2>
       <ul class="divide-y divide-slate-800">
         <li class="py-5">
-          <a href="#" class="text-lg font-semibold text-white hover:text-cyan-400">文章标题</a>
-          <p class="mt-1 text-slate-400 text-sm">文章摘要：一两句概括本文核心内容与结论。</p>
+          <a href="#" class="text-lg font-semibold text-white hover:text-cyan-400">用原生 Canvas 实现丝滑的星空粒子动画</a>
+          <p class="mt-1 text-slate-400 text-sm">从 requestAnimationFrame 到视差位移与拖尾残影，拆解一个高性能星空背景的完整实现思路。</p>
         </li>
         <li class="py-5">
-          <a href="#" class="text-lg font-semibold text-white hover:text-cyan-400">文章标题</a>
-          <p class="mt-1 text-slate-400 text-sm">文章摘要：一两句概括本文核心内容与结论。</p>
+          <a href="#" class="text-lg font-semibold text-white hover:text-cyan-400">Web Audio API 入门：不靠音频文件合成电子音效</a>
+          <p class="mt-1 text-slate-400 text-sm">用 OscillatorNode 和 GainNode 实时合成启动音、悬停音与点击音，并聊聊浏览器自动播放策略的坑。</p>
         </li>
         <li class="py-5">
-          <a href="#" class="text-lg font-semibold text-white hover:text-cyan-400">文章标题</a>
-          <p class="mt-1 text-slate-400 text-sm">文章摘要：一两句概括本文核心内容与结论。</p>
+          <a href="#" class="text-lg font-semibold text-white hover:text-cyan-400">Tailwind CDN 快速搭建个人主页的取舍</a>
+          <p class="mt-1 text-slate-400 text-sm">用 Play CDN 快速原型的收益与代价，以及什么场景下应该切换到正式构建流程。</p>
         </li>
       </ul>
     </section>
@@ -100,14 +100,12 @@
     <!-- Footer -->
     <footer class="border-t border-slate-800 py-12 text-center">
       <div class="flex justify-center gap-6">
-        <a href="https://github.com/yourname" aria-label="GitHub" data-sound="hover">
+        <a href="https://github.com/Jizen-066/Jizen066" aria-label="GitHub" data-sound="hover">
           <svg class="w-6 h-6 fill-current text-slate-400 hover:text-white transition-colors" viewBox="0 0 24 24">
             <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.78 1.05.78 2.12 0 1.53-.01 2.76-.01 3.14 0 .31.21.67.8.56A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/>
           </svg>
         </a>
-        <a href="mailto:you@example.com" aria-label="Email" data-sound="hover" class="text-slate-400 hover:text-white transition-colors">Email</a>
-        <a href="https://twitter.com/yourname" aria-label="X" data-sound="hover" class="text-slate-400 hover:text-white transition-colors">X</a>
-        <a href="https://blog.example.com" aria-label="Blog" data-sound="hover" class="text-slate-400 hover:text-white transition-colors">Blog</a>
+        <a href="mailto:3357650083@qq.com" aria-label="Email" data-sound="hover" class="text-slate-400 hover:text-white transition-colors">Email</a>
       </div>
       <p class="mt-6 text-slate-600 text-sm">© 2026 Jizen · Built with HTML/CSS/JS</p>
     </footer>
