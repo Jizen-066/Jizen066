@@ -117,6 +117,7 @@ body { background: #05070f; }
   height: 100%;
   object-fit: cover;
   z-index: -30;
+  will-change: transform;
 }
 #bg-overlay {
   position: fixed;

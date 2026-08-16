@@ -1,7 +1,7 @@
 /**
  * stars.js — 动态星空背景引擎
  * 基于 Canvas 2D + requestAnimationFrame。
- * 特性：鼠标视差位移、鼠标周围引力聚集；透明画布叠加在视频背景之上。
+ * 特性：鼠标视差位移、鼠标周围引力聚集；透明画布叠加在视频背景之上，且鼠标引力同时作用于银河系视频背景。
  */
 (function () {
   'use strict';
@@ -15,12 +15,16 @@
     height: 0,
     count: 160,
     rafId: null,
+    video: null,
+    bgX: 0,
+    bgY: 0,
 
     init(canvasId, options) {
       const opts = options || {};
       this.count = opts.count || 160;
       this.canvas = document.getElementById(canvasId);
       this.ctx = this.canvas.getContext('2d');
+      this.video = document.getElementById('bg-video');
 
       this.onResize = () => this.resize();
       this.onMove = (e) => {
@@ -72,10 +76,22 @@
     update() {
       const cx = this.width / 2;
       const cy = this.height / 2;
+      // 鼠标相对屏幕中心的偏移
+      const mx = this.mouse.active ? (this.mouse.x - cx) : 0;
+      const my = this.mouse.active ? (this.mouse.y - cy) : 0;
+
+      // 银河系视频背景受鼠标引力影响：向鼠标方向轻微位移，平滑过渡
+      const targetX = mx * 0.03;
+      const targetY = my * 0.03;
+      this.bgX += (targetX - this.bgX) * 0.08;
+      this.bgY += (targetY - this.bgY) * 0.08;
+      if (this.video) {
+        this.video.style.transform =
+          'translate3d(' + this.bgX.toFixed(2) + 'px,' + this.bgY.toFixed(2) + 'px,0) scale(1.08)';
+      }
+
       for (const s of this.stars) {
         // 视差：鼠标相对屏幕中心的偏移，深度越大位移越大，方向相反
-        const mx = this.mouse.active ? (this.mouse.x - cx) : 0;
-        const my = this.mouse.active ? (this.mouse.y - cy) : 0;
         const parallax = 0.05 + s.z * 0.15;
         s.x = s.baseX - mx * parallax;
         s.y = s.baseY - my * parallax;
