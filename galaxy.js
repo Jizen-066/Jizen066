@@ -1,6 +1,6 @@
 /**
  * galaxy.js — 基于 Three.js 的程序化螺旋星系背景
- * GPU 渲染约 9 万粒子：中心亮核 + 2 条主旋臂 + 絮状星云/星团 + 稀疏晕。
+ * GPU 渲染约 9 万粒子（移动端约 2.2 万）：中心亮核 + 2 条主旋臂 + 絮状星云/星团 + 稀疏晕。
  * 颜色暖白核 -> 橙 -> 蓝紫 -> 深蓝，絮状物为偏暗的星云色调。
  * 鼠标靠近时粒子被轻微吸引并增亮；按住空白处可绕 X/Y 轴任意翻转星系（无角度限制）。
  * 暴露 window.Galaxy.init() / destroy()。
@@ -11,11 +11,13 @@
   const X_AXIS = new THREE.Vector3(1, 0, 0);
   const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
+  // 移动端：降低粒子数、禁用拖拽旋转，保证流畅
+  const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 768;
+
   const VERT = /* glsl */ `
     uniform float uTime;
     uniform vec2 uMouse;      // NDC 坐标（-1..1），初始为远点表示未激活
     uniform float uSize;
-    uniform float uPixelRatio;
 
     attribute float aScale;
     attribute vec3 aColor;
@@ -48,7 +50,7 @@
       clip.xy = ndc * clip.w;
       gl_Position = clip;
 
-      gl_PointSize = aScale * uSize * uPixelRatio / -mvPosition.z;
+      gl_PointSize = aScale * uSize / -mvPosition.z;
 
       vColor = aColor;
       vGlow = influence;
@@ -113,9 +115,9 @@
       this.camera.position.set(0, 12, 26);
       this.camera.lookAt(0, 0, 0);
 
-      this.renderer = new THREE.WebGLRenderer({ antialias: true });
+      this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
       this.renderer.setSize(width, height);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      this.renderer.setPixelRatio(1);
       this.renderer.domElement.id = 'galaxy-canvas';
       document.body.appendChild(this.renderer.domElement);
 
@@ -152,6 +154,7 @@
 
     // 拖拽转动：命中恒星或面板时不响应，避免影响原有交互
     pointerDown(e) {
+      if (IS_MOBILE) return;
       const t = e.target;
       if (t && typeof t.closest === 'function' && (t.closest('.star-node') || t.closest('#panel-layer'))) return;
       this.dragging = true;
@@ -160,7 +163,7 @@
     },
 
     pointerMove(e) {
-      if (!this.dragging || !this.group) return;
+      if (IS_MOBILE || !this.dragging || !this.group) return;
       const dx = e.clientX - this.lastX;
       const dy = e.clientY - this.lastY;
       this.lastX = e.clientX;
@@ -176,7 +179,7 @@
     },
 
     buildGalaxy() {
-      const count = 90000;
+      const count = IS_MOBILE ? 22000 : 90000;
       const geometry = new THREE.BufferGeometry();
       const positions = new Float32Array(count * 3);
       const colors = new Float32Array(count * 3);
@@ -288,7 +291,6 @@
           uTime: { value: 0 },
           uMouse: { value: new THREE.Vector2(10, 10) },
           uSize: { value: 90 },
-          uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 2) },
           uExposure: { value: 0.34 },
         },
         vertexShader: VERT,
@@ -313,9 +315,6 @@
       this.camera.aspect = width / height;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(width, height);
-      if (this.material) {
-        this.material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, 2);
-      }
     },
 
     animate() {

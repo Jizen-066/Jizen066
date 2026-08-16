@@ -5,6 +5,9 @@
 (function () {
   'use strict';
 
+  // 移动端：禁用恒星拖拽，改为点击直接打开面板
+  const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 768;
+
   // ===== 全局状态 =====
   let startupPlayed = false;
   let currentPanel = null;
@@ -344,7 +347,7 @@
 
     // 拖拽 / 点击
     document.addEventListener('pointerdown', (e) => {
-      if (currentPanel) return; // 面板打开时不响应恒星拖拽/点击
+      if (IS_MOBILE || currentPanel) return; // 移动端/面板打开时不响应恒星拖拽
       const b = hitTest(e.clientX, e.clientY);
       if (!b) return;
       dragging = b;
@@ -361,7 +364,7 @@
     });
 
     document.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
+      if (IS_MOBILE || !dragging) return;
       dragging.x = e.clientX + dragOffset.dx;
       dragging.y = e.clientY + dragOffset.dy;
       dragging.vx = e.clientX - lastX; // 惯性速度
@@ -383,6 +386,20 @@
         if (b.target) openPanel(b.target);
       }
     });
+
+    // 移动端：禁用拖拽，改为点击直接打开面板
+    if (IS_MOBILE) {
+      nodes.forEach((node) => {
+        node.addEventListener('click', () => {
+          if (currentPanel) return;
+          const target = node.getAttribute('data-target');
+          if (target) {
+            try { window.AudioEngine.playClick(); } catch (err) {}
+            openPanel(target);
+          }
+        });
+      });
+    }
 
     // 点击面板层空白处关闭
     const layer = document.getElementById('panel-layer');
