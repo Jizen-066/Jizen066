@@ -146,6 +146,9 @@
     orbitPitch: 0.35,
     orbitDist: 9,
     onAvatarClick: null,
+    toggleBtn: null,
+    toggleGalaxyIcon: null,
+    toggleBackIcon: null,
 
     init() {
       const width = window.innerWidth;
@@ -195,6 +198,17 @@
       this.onAvatarClick = () => { if (this.view === 'companion') this.resetView(); };
       const avatar = document.getElementById('avatar');
       if (avatar) avatar.addEventListener('click', this.onAvatarClick);
+
+      // 手机端：伴星系 / 返回 切换按钮
+      this.toggleBtn = document.getElementById('companion-toggle');
+      this.toggleGalaxyIcon = document.getElementById('toggle-galaxy-icon');
+      this.toggleBackIcon = document.getElementById('toggle-back-icon');
+      if (this.toggleBtn) {
+        this.toggleBtn.addEventListener('click', () => {
+          if (this.view === 'companion') this.resetView();
+          else this.focusCompanion();
+        });
+      }
 
       this.clock = new THREE.Clock();
       this.animate();
@@ -636,6 +650,7 @@
       if (orbit) orbit.classList.add('hidden');
       if (center) center.classList.add('hidden');
       if (particles) particles.classList.add('hidden');
+      this.syncToggleButton();
     },
 
     // 返回主星系
@@ -647,6 +662,18 @@
       if (orbit) orbit.classList.remove('hidden');
       if (center) center.classList.remove('hidden');
       if (particles) particles.classList.remove('hidden');
+      this.syncToggleButton();
+    },
+
+    // 同步手机端切换按钮图标（伴星系 -> 返回箭头）
+    syncToggleButton() {
+      if (!this.toggleGalaxyIcon || !this.toggleBackIcon) return;
+      const inCompanion = this.view === 'companion';
+      this.toggleGalaxyIcon.classList.toggle('hidden', inCompanion);
+      this.toggleBackIcon.classList.toggle('hidden', !inCompanion);
+      if (this.toggleBtn) {
+        this.toggleBtn.setAttribute('aria-label', inCompanion ? '返回主星系' : '切换到伴星系');
+      }
     },
 
     updateCamera(dt) {
