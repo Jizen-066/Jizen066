@@ -18,8 +18,11 @@
     <div class="mt-6 text-cyan-400 tracking-[0.3em] text-sm animate-pulse">INITIALIZING...</div>
   </div>
 
-  <!-- 银河系视频背景（循环播放） -->
+  <!-- 银河系视频源（隐藏，绘制到画布以施加引力扭曲） -->
   <video id="bg-video" autoplay muted loop playsinline preload="auto" src="assets/Galaxy.webm"></video>
+
+  <!-- 视频背景画布（含引力扭曲，最底层） -->
+  <canvas id="bg-canvas" class="fixed inset-0 -z-30"></canvas>
   <div id="bg-overlay"></div>
 
   <!-- 动态星空背景画布（叠加在视频上的透明星空） -->

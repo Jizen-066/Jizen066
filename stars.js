@@ -1,29 +1,35 @@
 /**
  * stars.js — 动态星空背景引擎
  * 基于 Canvas 2D + requestAnimationFrame。
- * 特性：鼠标视差位移、鼠标周围引力聚集；透明画布叠加在视频背景之上，且鼠标引力同时作用于银河系视频背景。
+ * 特性：
+ *   - 银河系视频绘制到背景画布，鼠标周围施加径向引力扭曲（引力透镜效果）；
+ *   - 星空粒子叠加在视频之上，具备视差位移与引力聚集。
  */
 (function () {
   'use strict';
 
   const Stars = {
-    canvas: null,
+    canvas: null,       // 星空粒子画布
     ctx: null,
+    bgCanvas: null,     // 视频背景画布（含引力扭曲）
+    bgCtx: null,
+    video: null,
     stars: [],
     mouse: { x: 0, y: 0, active: false },
     width: 0,
     height: 0,
     count: 160,
+    warpRadius: 150,     // 引力扭曲半径
+    warpStrength: 0.32,  // 引力扭曲强度
     rafId: null,
-    video: null,
-    bgX: 0,
-    bgY: 0,
 
     init(canvasId, options) {
       const opts = options || {};
       this.count = opts.count || 160;
       this.canvas = document.getElementById(canvasId);
       this.ctx = this.canvas.getContext('2d');
+      this.bgCanvas = document.getElementById('bg-canvas');
+      this.bgCtx = this.bgCanvas.getContext('2d');
       this.video = document.getElementById('bg-video');
 
       this.onResize = () => this.resize();
@@ -46,6 +52,8 @@
     resize() {
       this.width = this.canvas.width = window.innerWidth;
       this.height = this.canvas.height = window.innerHeight;
+      this.bgCanvas.width = this.width;
+      this.bgCanvas.height = this.height;
     },
 
     spawn() {
@@ -67,7 +75,8 @@
     loop() {
       const step = () => {
         this.update();
-        this.draw();
+        this.drawBackground();
+        this.drawStars();
         this.rafId = requestAnimationFrame(step);
       };
       this.rafId = requestAnimationFrame(step);
@@ -76,19 +85,8 @@
     update() {
       const cx = this.width / 2;
       const cy = this.height / 2;
-      // 鼠标相对屏幕中心的偏移
       const mx = this.mouse.active ? (this.mouse.x - cx) : 0;
       const my = this.mouse.active ? (this.mouse.y - cy) : 0;
-
-      // 银河系视频背景受鼠标引力影响：向鼠标方向轻微位移，平滑过渡
-      const targetX = mx * 0.03;
-      const targetY = my * 0.03;
-      this.bgX += (targetX - this.bgX) * 0.08;
-      this.bgY += (targetY - this.bgY) * 0.08;
-      if (this.video) {
-        this.video.style.transform =
-          'translate3d(' + this.bgX.toFixed(2) + 'px,' + this.bgY.toFixed(2) + 'px,0) scale(1.08)';
-      }
 
       for (const s of this.stars) {
         // 视差：鼠标相对屏幕中心的偏移，深度越大位移越大，方向相反
@@ -113,9 +111,83 @@
       }
     },
 
-    draw() {
+    // 绘制视频背景：把视频帧画到背景画布，再对鼠标周围做引力扭曲
+    drawBackground() {
+      const bg = this.bgCtx;
+      if (this.video && this.video.readyState >= 2) {
+        const vw = this.video.videoWidth;
+        const vh = this.video.videoHeight;
+        if (vw && vh) {
+          // cover 裁剪：等比放大填满画布并居中裁剪
+          const scale = Math.max(this.width / vw, this.height / vh);
+          const sw = this.width / scale;
+          const sh = this.height / scale;
+          const sx = (vw - sw) / 2;
+          const sy = (vh - sh) / 2;
+          bg.drawImage(this.video, sx, sy, sw, sh, 0, 0, this.width, this.height);
+        } else {
+          bg.fillStyle = '#05070f';
+          bg.fillRect(0, 0, this.width, this.height);
+        }
+      } else {
+        bg.fillStyle = '#05070f';
+        bg.fillRect(0, 0, this.width, this.height);
+      }
+
+      if (this.mouse.active) {
+        this.applyWarp();
+      }
+    },
+
+    // 径向引力扭曲：鼠标周围图像向鼠标收缩，模拟引力透镜
+    applyWarp() {
+      const bg = this.bgCtx;
+      const R = this.warpRadius;
+      const region = R * 2;
+      const mx = this.mouse.x;
+      const my = this.mouse.y;
+
+      // 计算有效区域（裁剪到画布边界）
+      const sx = Math.max(0, Math.floor(mx - R));
+      const sy = Math.max(0, Math.floor(my - R));
+      const rw = Math.min(region, this.width - sx);
+      const rh = Math.min(region, this.height - sy);
+      if (rw <= 0 || rh <= 0) return;
+
+      const imgData = bg.getImageData(sx, sy, rw, rh);
+      const data = imgData.data;
+      const copy = new Uint8ClampedArray(data);
+
+      const cx = mx - sx; // 鼠标在区域内的相对坐标
+      const cy = my - sy;
+
+      for (let y = 0; y < rh; y++) {
+        for (let x = 0; x < rw; x++) {
+          const dx = x - cx;
+          const dy = y - cy;
+          const dist = Math.hypot(dx, dy);
+          if (dist < R && dist > 0) {
+            // 越靠近鼠标，采样越远，图像越向鼠标收缩
+            const force = (1 - dist / R) * this.warpStrength;
+            const ix = x + dx * force;
+            const iy = y + dy * force;
+            const px = ix < 0 ? 0 : (ix >= rw ? rw - 1 : ix | 0);
+            const py = iy < 0 ? 0 : (iy >= rh ? rh - 1 : iy | 0);
+            const si = (py * rw + px) * 4;
+            const di = (y * rw + x) * 4;
+            data[di] = copy[si];
+            data[di + 1] = copy[si + 1];
+            data[di + 2] = copy[si + 2];
+          }
+        }
+      }
+
+      bg.putImageData(imgData, sx, sy);
+    },
+
+    // 绘制星空粒子（透明画布，叠加在视频背景之上）
+    drawStars() {
       const ctx = this.ctx;
-      // 透明画布：清空后绘制星星，让视频背景透出
       ctx.clearRect(0, 0, this.width, this.height);
 
       for (const s of this.stars) {
