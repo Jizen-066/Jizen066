@@ -31,6 +31,7 @@
       this.bgCanvas = document.getElementById('bg-canvas');
       this.bgCtx = this.bgCanvas.getContext('2d');
       this.video = document.getElementById('bg-video');
+      this.video.playbackRate = 1.25; // 背景视频 1.25 倍速
 
       this.onResize = () => this.resize();
       this.onMove = (e) => {

@@ -139,27 +139,20 @@
     const panel = document.getElementById('panel-' + target);
     const layer = document.getElementById('panel-layer');
     const center = document.getElementById('center-view');
-    const orbit = document.getElementById('orbit');
     const focus = focusOverlay();
+    const bgBlur = document.getElementById('bg-blur');
     if (!panel || !layer) return;
 
     const body = starBodies.find((b) => b.target === target);
 
-    // 面板背景取当前恒星颜色
-    panel.style.setProperty('--panel-color', STAR_COLORS[target] || '34,211,238');
-
     center.classList.add('hidden');
-    orbit.classList.add('hidden');
     layer.classList.add('active');
+    if (bgBlur) bgBlur.classList.add('active');
 
-    // 复制恒星外观到聚焦光斑，并让它从恒星位置放大铺满窗口
+    // 聚焦光斑用恒星自己的颜色（柔和一点，避免盖住背景），并让它从恒星位置放大铺满窗口
     if (focus && body) {
-      const glow = body.el.querySelector('.star-glow');
-      const cs = glow ? getComputedStyle(glow) : null;
-      if (cs) {
-        focus.style.background = cs.backgroundImage;
-        focus.style.boxShadow = cs.boxShadow;
-      }
+      const c = STAR_COLORS[target] || '139,92,246';
+      focus.style.background = 'radial-gradient(circle, rgba(' + c + ',0.5) 0%, rgba(' + c + ',0.22) 45%, rgba(' + c + ',0.07) 72%, transparent 100%)';
       focusOrigin = { x: body.x, y: body.y };
 
       const r = 46; // 光斑半径（92px 的一半）
@@ -191,12 +184,13 @@
     const panel = currentPanel;
     const layer = document.getElementById('panel-layer');
     const center = document.getElementById('center-view');
-    const orbit = document.getElementById('orbit');
     const focus = focusOverlay();
+    const bgBlur = document.getElementById('bg-blur');
     currentPanel = null;
 
     panel.classList.remove('active');
     layer.classList.remove('active');
+    if (bgBlur) bgBlur.classList.remove('active');
 
     // 光斑缩回恒星原来的位置并淡出
     if (focus) {
@@ -208,7 +202,6 @@
     setTimeout(() => {
       panel.classList.add('hidden');
       center.classList.remove('hidden');
-      orbit.classList.remove('hidden');
     }, 600);
   }
 
@@ -356,6 +349,7 @@
 
     // 拖拽 / 点击
     document.addEventListener('pointerdown', (e) => {
+      if (currentPanel) return; // 面板打开时不响应恒星拖拽/点击
       const b = hitTest(e.clientX, e.clientY);
       if (!b) return;
       dragging = b;
