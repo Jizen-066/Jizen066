@@ -154,7 +154,14 @@
       const rh = Math.min(region, this.height - sy);
       if (rw <= 0 || rh <= 0) return;
 
-      const imgData = bg.getImageData(sx, sy, rw, rh);
+      let imgData;
+      try {
+        imgData = bg.getImageData(sx, sy, rw, rh);
+      } catch (e) {
+        // 视频未同源（如 file:// 直接打开）时 canvas 会被污染，
+        // getImageData 抛 SecurityError。此时跳过扭曲，保证背景与星空不卡死。
+        return;
+      }
       const data = imgData.data;
       const copy = new Uint8ClampedArray(data);
 
