@@ -21,6 +21,7 @@
     count: 160,
     warpRadius: 150,     // 引力扭曲半径
     warpStrength: 0.12,  // 引力扭曲强度
+    warpLut: null,       // 预计算的扭曲像素重映射表
     rafId: null,
 
     init(canvasId, options) {
@@ -140,53 +141,66 @@
       }
     },
 
+    // 预计算径向扭曲的像素重映射表（映射只与相对中心的偏移有关，可复用）
+    buildWarpLut() {
+      const R = this.warpRadius;
+      const S = R * 2;
+      const lut = new Int32Array(S * S);
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          const dx = x - R;
+          const dy = y - R;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          let idx = y * S + x; // 默认保持原像素
+          if (dist < R && dist > 0) {
+            const force = (1 - dist / R) * this.warpStrength;
+            const ix = x + dx * force;
+            const iy = y + dy * force;
+            const px = ix < 0 ? 0 : (ix >= S ? S - 1 : ix | 0);
+            const py = iy < 0 ? 0 : (iy >= S ? S - 1 : iy | 0);
+            idx = py * S + px;
+          }
+          lut[y * S + x] = idx;
+        }
+      }
+      this.warpLut = lut;
+    },
+
     // 径向引力扭曲：鼠标周围图像向鼠标收缩，模拟引力透镜
     applyWarp() {
       const bg = this.bgCtx;
       const R = this.warpRadius;
-      const region = R * 2;
+      const S = R * 2;
       const mx = this.mouse.x;
       const my = this.mouse.y;
 
-      // 计算有效区域（裁剪到画布边界）
-      const sx = Math.max(0, Math.floor(mx - R));
-      const sy = Math.max(0, Math.floor(my - R));
-      const rw = Math.min(region, this.width - sx);
-      const rh = Math.min(region, this.height - sy);
-      if (rw <= 0 || rh <= 0) return;
+      // 靠近画布边缘时不扭曲，避免区域裁剪带来的映射错位
+      if (mx < R || my < R || mx > this.width - R || my > this.height - R) return;
+
+      if (!this.warpLut) this.buildWarpLut();
+      const lut = this.warpLut;
+
+      const sx = Math.floor(mx - R);
+      const sy = Math.floor(my - R);
 
       let imgData;
       try {
-        imgData = bg.getImageData(sx, sy, rw, rh);
+        imgData = bg.getImageData(sx, sy, S, S);
       } catch (e) {
-        // 视频未同源（如 file:// 直接打开）时 canvas 会被污染，
-        // getImageData 抛 SecurityError。此时跳过扭曲，保证背景与星空不卡死。
+        // 视频未同源（如 file:// 直接打开）时 canvas 会被污染，跳过扭曲
         return;
       }
       const data = imgData.data;
       const copy = new Uint8ClampedArray(data);
 
-      const cx = mx - sx; // 鼠标在区域内的相对坐标
-      const cy = my - sy;
-
-      for (let y = 0; y < rh; y++) {
-        for (let x = 0; x < rw; x++) {
-          const dx = x - cx;
-          const dy = y - cy;
-          const dist = Math.hypot(dx, dy);
-          if (dist < R && dist > 0) {
-            // 越靠近鼠标，采样越远，图像越向鼠标收缩
-            const force = (1 - dist / R) * this.warpStrength;
-            const ix = x + dx * force;
-            const iy = y + dy * force;
-            const px = ix < 0 ? 0 : (ix >= rw ? rw - 1 : ix | 0);
-            const py = iy < 0 ? 0 : (iy >= rh ? rh - 1 : iy | 0);
-            const si = (py * rw + px) * 4;
-            const di = (y * rw + x) * 4;
-            data[di] = copy[si];
-            data[di + 1] = copy[si + 1];
-            data[di + 2] = copy[si + 2];
-          }
+      for (let i = 0; i < S * S; i++) {
+        const si = lut[i];
+        if (si !== i) {
+          const di = i * 4;
+          const s = si * 4;
+          data[di] = copy[s];
+          data[di + 1] = copy[s + 1];
+          data[di + 2] = copy[s + 2];
         }
       }
 

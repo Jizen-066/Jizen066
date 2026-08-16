@@ -209,8 +209,6 @@
   function applyPosition(b) {
     b.el.style.left = b.x + 'px';
     b.el.style.top = b.y + 'px';
-    const glow = b.el.querySelector('.star-glow');
-    if (glow) glow.style.transform = 'rotate(' + b.spin.toFixed(4) + 'rad)';
   }
 
   function hitTest(mx, my) {
@@ -263,8 +261,6 @@
       if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.7; }
       if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy) * 0.7; }
       if (b.y > H - b.r) { b.y = H - b.r; b.vy = -Math.abs(b.vy) * 0.7; }
-      // 自转
-      b.spin += 0.004 + (Math.abs(b.vx) + Math.abs(b.vy)) * 0.002;
       applyPosition(b);
     }
 
@@ -331,7 +327,6 @@
         vx: 0,
         vy: 0,
         r: 40,
-        spin: Math.random() * Math.PI * 2,
         color: STAR_COLORS[target] || '200,200,200',
         particles: Array.from({ length: 16 }, () => ({
           orbit: 46 + Math.random() * 60,
