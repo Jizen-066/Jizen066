@@ -249,44 +249,50 @@
   }
 
   function physicsLoop(pctx) {
-    // 更新位置与速度
-    for (const b of starBodies) {
-      if (b !== dragging) {
-        b.x += b.vx;
-        b.y += b.vy;
-        b.vx *= 0.98; // 摩擦
-        b.vy *= 0.98;
-        if (Math.abs(b.vx) < 0.05) b.vx = 0;
-        if (Math.abs(b.vy) < 0.05) b.vy = 0;
+    const inCompanion = window.Galaxy && window.Galaxy.view === 'companion';
+
+    if (!inCompanion) {
+      // 更新位置与速度
+      for (const b of starBodies) {
+        if (b !== dragging) {
+          b.x += b.vx;
+          b.y += b.vy;
+          b.vx *= 0.98; // 摩擦
+          b.vy *= 0.98;
+          if (Math.abs(b.vx) < 0.05) b.vx = 0;
+          if (Math.abs(b.vy) < 0.05) b.vy = 0;
+        }
+        // 边界回弹
+        if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx) * 0.7; }
+        if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.7; }
+        if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy) * 0.7; }
+        if (b.y > H - b.r) { b.y = H - b.r; b.vy = -Math.abs(b.vy) * 0.7; }
+        applyPosition(b);
       }
-      // 边界回弹
-      if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx) * 0.7; }
-      if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.7; }
-      if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy) * 0.7; }
-      if (b.y > H - b.r) { b.y = H - b.r; b.vy = -Math.abs(b.vy) * 0.7; }
-      applyPosition(b);
+
+      // 恒星两两碰撞
+      for (let i = 0; i < starBodies.length; i++) {
+        for (let j = i + 1; j < starBodies.length; j++) {
+          collide(starBodies[i], starBodies[j]);
+        }
+      }
     }
 
-    // 恒星两两碰撞
-    for (let i = 0; i < starBodies.length; i++) {
-      for (let j = i + 1; j < starBodies.length; j++) {
-        collide(starBodies[i], starBodies[j]);
-      }
-    }
-
-    // 粒子渲染
+    // 粒子渲染（伴星系视角下清空，粒子效果消失）
     if (pctx) {
       pctx.clearRect(0, 0, W, H);
-      for (const b of starBodies) {
-        for (const p of b.particles) {
-          p.angle += p.speed;
-          const px = b.x + Math.cos(p.angle) * p.orbit;
-          const py = b.y + Math.sin(p.angle) * p.orbit;
-          const alpha = 0.45 + 0.55 * Math.abs(Math.sin(p.angle * 2 + p.phase));
-          pctx.fillStyle = 'rgba(' + b.color + ',' + alpha.toFixed(3) + ')';
-          pctx.beginPath();
-          pctx.arc(px, py, p.size, 0, Math.PI * 2);
-          pctx.fill();
+      if (!inCompanion) {
+        for (const b of starBodies) {
+          for (const p of b.particles) {
+            p.angle += p.speed;
+            const px = b.x + Math.cos(p.angle) * p.orbit;
+            const py = b.y + Math.sin(p.angle) * p.orbit;
+            const alpha = 0.45 + 0.55 * Math.abs(Math.sin(p.angle * 2 + p.phase));
+            pctx.fillStyle = 'rgba(' + b.color + ',' + alpha.toFixed(3) + ')';
+            pctx.beginPath();
+            pctx.arc(px, py, p.size, 0, Math.PI * 2);
+            pctx.fill();
+          }
         }
       }
     }
@@ -348,6 +354,7 @@
     // 拖拽 / 点击
     document.addEventListener('pointerdown', (e) => {
       if (IS_MOBILE || currentPanel) return; // 移动端/面板打开时不响应恒星拖拽
+      if (window.Galaxy && window.Galaxy.view === 'companion') return; // 伴星系视角：恒星不可交互
       const b = hitTest(e.clientX, e.clientY);
       if (!b) return;
       dragging = b;
@@ -365,6 +372,7 @@
 
     document.addEventListener('pointermove', (e) => {
       if (IS_MOBILE || !dragging) return;
+      if (window.Galaxy && window.Galaxy.view === 'companion') return;
       dragging.x = e.clientX + dragOffset.dx;
       dragging.y = e.clientY + dragOffset.dy;
       dragging.vx = e.clientX - lastX; // 惯性速度
@@ -392,6 +400,7 @@
       nodes.forEach((node) => {
         node.addEventListener('click', () => {
           if (currentPanel) return;
+          if (window.Galaxy && window.Galaxy.view === 'companion') return;
           const target = node.getAttribute('data-target');
           if (target) {
             try { window.AudioEngine.playClick(); } catch (err) {}

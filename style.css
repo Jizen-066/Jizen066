@@ -254,9 +254,9 @@ body { background: #05070f; }
   padding: 2.5rem;
   border-radius: 1rem;
   /* 背景统一为蓝紫色，半透明 + 模糊，透出后方背景 */
-  background: rgba(var(--panel-color, 139, 92, 246), 0.16);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(var(--panel-color, 139, 92, 246), 0.26);
+  background: rgba(var(--panel-color, 139, 92, 246), 0.34);
+  backdrop-filter: blur(28px);
+  border: 1px solid rgba(var(--panel-color, 139, 92, 246), 0.32);
 }
 
 /* 文章日期 */
@@ -284,4 +284,34 @@ body { background: #05070f; }
   color: #fff;
   border-color: #a78bfa;
   transform: rotate(90deg);
+}
+
+/* ===== 伴星系/友链粒子悬停提示框 ===== */
+#space-tooltip {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(167, 139, 250, 0.5);
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+/* ===== 友链名称标签（伴星系视角常态显示） ===== */
+.friend-label {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-shadow: 0 0 8px currentColor, 0 0 2px rgba(0, 0, 0, 0.9);
 }

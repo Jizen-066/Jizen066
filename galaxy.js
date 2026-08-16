@@ -3,6 +3,8 @@
  * GPU 渲染约 9 万粒子（移动端约 2.2 万）：中心亮核 + 2 条主旋臂 + 絮状星云/星团 + 稀疏晕。
  * 颜色暖白核 -> 橙 -> 蓝紫 -> 深蓝，絮状物为偏暗的星云色调。
  * 鼠标靠近时粒子被轻微吸引并增亮；按住空白处可绕 X/Y 轴任意翻转星系（无角度限制）。
+ * 附带一个绕主星系公转的伴星系（更小、粒子更少），悬停显示"伴星系"、点击传送视角；
+ * 伴星系周围有 4 个可悬停/点击的友链粒子，点击跳转对应网站。
  * 暴露 window.Galaxy.init() / destroy()。
  */
 (function () {
@@ -13,6 +15,14 @@
 
   // 移动端：降低粒子数、禁用拖拽旋转，保证流畅
   const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 768;
+
+  // 伴星系周围的友链粒子（各有独立颜色）
+  const FRIEND_LINKS = [
+    { name: 'YN', url: 'https://www.continueyn.site', color: 0x4fd1ff },
+    { name: 'YYR', url: 'https://d2e27556a0604eea89cda8bffaefb020.sh2.agentos-app.net', color: 0xa78bfa },
+    { name: 'QQ', url: 'https://qqhamburger.top', color: 0x34d399 },
+    { name: 'PresentBox', url: 'https://mypresentboxes.com', color: 0xfbbf24 },
+  ];
 
   const VERT = /* glsl */ `
     uniform float uTime;
@@ -85,6 +95,21 @@
     return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
   }
 
+  // 生成柔和光点纹理（用于友链粒子 Sprite）
+  function makeGlowTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.25, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.6, 'rgba(255,255,255,0.4)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }
+
   const Galaxy = {
     renderer: null,
     scene: null,
@@ -100,9 +125,27 @@
     onPointerDown: null,
     onPointerMove: null,
     onPointerUp: null,
+    onClick: null,
     dragging: false,
     lastX: 0,
     lastY: 0,
+    downX: 0,
+    downY: 0,
+
+    // 伴星系与友链
+    companionPivot: null,
+    companion: null,
+    linkGroup: null,
+    linkAnchors: null,
+    linkLabels: null,
+    view: 'main',          // 'main' | 'companion'
+    hovered: null,         // 'companion' | 'main' | {name,url,color,anchor,sprite} | null
+    tooltip: null,
+    companionMaterial: null,
+    orbitYaw: 0,
+    orbitPitch: 0.35,
+    orbitDist: 9,
+    onAvatarClick: null,
 
     init() {
       const width = window.innerWidth;
@@ -122,38 +165,60 @@
       document.body.appendChild(this.renderer.domElement);
 
       this.buildGalaxy();
+      this.buildCompanion();
+      this.buildTooltip();
 
       this.onResize = () => this.resize();
-      this.onMove = (e) => this.setMouse(e.clientX, e.clientY);
-      this.onLeave = () => this.setMouse(null);
+      this.onMove = (e) => {
+        this.setMouse(e.clientX, e.clientY);
+        this.updateHover(e.clientX, e.clientY);
+      };
+      this.onLeave = () => {
+        this.setMouse(null);
+        this.hovered = null;
+        if (this.tooltip) this.tooltip.style.opacity = '0';
+      };
       window.addEventListener('resize', this.onResize);
       window.addEventListener('mousemove', this.onMove);
       window.addEventListener('mouseleave', this.onLeave);
 
       this.onPointerDown = (e) => this.pointerDown(e);
       this.onPointerMove = (e) => this.pointerMove(e);
-      this.onPointerUp = () => { this.dragging = false; };
+      this.onPointerUp = (e) => this.pointerUp(e);
+      this.onClick = (e) => this.handleClick(e);
       document.addEventListener('pointerdown', this.onPointerDown);
       document.addEventListener('pointermove', this.onPointerMove);
       document.addEventListener('pointerup', this.onPointerUp);
+      document.addEventListener('click', this.onClick);
+
+      // 点击右上角头像返回主星系视角
+      this.onAvatarClick = () => { if (this.view === 'companion') this.resetView(); };
+      const avatar = document.getElementById('avatar');
+      if (avatar) avatar.addEventListener('click', this.onAvatarClick);
 
       this.clock = new THREE.Clock();
       this.animate();
     },
 
     setMouse(cx, cy) {
-      if (!this.material) return;
-      if (cx === null || cy === null) {
-        this.material.uniforms.uMouse.value.set(10, 10);
-        return;
-      }
-      const nx = (cx / window.innerWidth) * 2 - 1;
-      const ny = -(cy / window.innerHeight) * 2 + 1;
-      this.material.uniforms.uMouse.value.set(nx, ny);
+      const apply = (m) => {
+        if (!m) return;
+        if (cx === null || cy === null) {
+          m.uniforms.uMouse.value.set(10, 10);
+        } else {
+          const nx = (cx / window.innerWidth) * 2 - 1;
+          const ny = -(cy / window.innerHeight) * 2 + 1;
+          m.uniforms.uMouse.value.set(nx, ny);
+        }
+      };
+      apply(this.material);
+      apply(this.companionMaterial);
     },
 
     // 拖拽转动：命中恒星或面板时不响应，避免影响原有交互
     pointerDown(e) {
+      this.downX = e.clientX;
+      this.downY = e.clientY;
       if (IS_MOBILE) return;
       const t = e.target;
       if (t && typeof t.closest === 'function' && (t.closest('.star-node') || t.closest('#panel-layer'))) return;
@@ -163,19 +228,38 @@
     },
 
     pointerMove(e) {
-      if (IS_MOBILE || !this.dragging || !this.group) return;
+      if (IS_MOBILE || !this.dragging) return;
       const dx = e.clientX - this.lastX;
       const dy = e.clientY - this.lastY;
       this.lastX = e.clientX;
       this.lastY = e.clientY;
 
-      // 左右拖动绕世界 Y（偏航），上下拖动绕世界 X（俯仰），四元数累乘、无角度限制
-      const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
-      const qx = new THREE.Quaternion().setFromAxisAngle(X_AXIS, dy * 0.005);
-      this.group.quaternion.premultiply(qy).premultiply(qx);
+      if (this.view === 'companion') {
+        // 伴星系视角：绕伴星系 orbit 相机（增量，不归位）
+        this.orbitYaw -= dx * 0.005;
+        this.orbitPitch = Math.max(-1.2, Math.min(1.2, this.orbitPitch + dy * 0.005));
+      } else {
+        // 主视角：左右绕世界 Y（偏航），上下绕世界 X（俯仰），四元数累乘、无角度限制
+        const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
+        const qx = new THREE.Quaternion().setFromAxisAngle(X_AXIS, dy * 0.005);
+        this.group.quaternion.premultiply(qy).premultiply(qx);
 
-      // 同步让星空层产生视差位移（模拟视角转动）
-      try { window.Stars && window.Stars.pan(dx, dy); } catch (err) {}
+        // 同步让星空层产生视差位移（模拟视角转动）
+        try { window.Stars && window.Stars.pan(dx, dy); } catch (err) {}
+      }
+    },
+
+    pointerUp(e) {
+      const moved = Math.hypot(e.clientX - this.downX, e.clientY - this.downY) > 5;
+      this.dragging = false;
+      if (!IS_MOBILE && !moved && this.hovered) this.activateHovered();
+    },
+
+    // 移动端：用 click 命中检测友链/伴星系
+    handleClick(e) {
+      if (!IS_MOBILE) return;
+      this.updateHover(e.clientX, e.clientY);
+      if (this.hovered) this.activateHovered();
     },
 
     buildGalaxy() {
@@ -205,7 +289,7 @@
           y: gaussian() * 1.5,
           radius: 1.5 + Math.random() * 3.5,
           color: new THREE.Color(nebulaColors[(Math.random() * nebulaColors.length) | 0]),
-          brightness: 0.6 + Math.random() * 0.4,  // 更浓、明暗对比更强
+          brightness: 0.6 + Math.random() * 0.4,
         });
       }
 
@@ -309,6 +393,287 @@
       this.scene.add(this.group);
     },
 
+    // 伴星系：更小、粒子更少，绕主星系公转（与主星系同样的多颜色 + 絮状星云）
+    buildCompanion() {
+      const count = IS_MOBILE ? 4000 : 15000;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+      const colors = new Float32Array(count * 3);
+      const scales = new Float32Array(count);
+
+      const cCore = new THREE.Color(0xfff0d0);
+      const cInside = new THREE.Color(0xffb050);
+      const cMid = new THREE.Color(0x9a7bff);
+      const cArmOut = new THREE.Color(0x4a5fd0);
+      const cHalo = new THREE.Color(0x162a5a);
+      const tmp = new THREE.Color();
+
+      // 絮状星云团块
+      const nebulaColors = [0x6a5fd0, 0x9a6a9a, 0x4a7ab5, 0x7a5a8a, 0x3a6a8a, 0x8a5a7a, 0x5a4a9a];
+      const clusters = [];
+      for (let k = 0; k < 8; k++) {
+        const r = 1 + Math.random() * 4.5;
+        const ang = Math.random() * Math.PI * 2;
+        clusters.push({
+          x: Math.cos(ang) * r,
+          z: Math.sin(ang) * r,
+          y: gaussian() * 0.6,
+          radius: 0.6 + Math.random() * 1.5,
+          color: new THREE.Color(nebulaColors[(Math.random() * nebulaColors.length) | 0]),
+          brightness: 0.5 + Math.random() * 0.5,
+        });
+      }
+
+      for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        const type = Math.random();
+        let x, y, z;
+
+        if (type < 0.12) {
+          // 中心亮核
+          const r = Math.abs(gaussian()) * 1.5;
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          x = Math.sin(phi) * Math.cos(theta) * r;
+          y = Math.sin(phi) * Math.sin(theta) * r * 0.35;
+          z = Math.cos(phi) * r;
+          tmp.copy(cCore).lerp(cInside, r / 1.5);
+          scales[i] = 0.4 + Math.random() * 0.6;
+        } else if (type < 0.5) {
+          // 旋臂（2 条）
+          const radius = 1.5 + Math.random() * 4.5;
+          const branch = (i % 2) / 2 * Math.PI * 2;
+          const angle = branch + radius * 0.8;
+          const nx = -Math.sin(angle);
+          const nz = Math.cos(angle);
+          const armWidth = 0.2 + radius * 0.06;
+          const rr = radius + gaussian() * 0.3;
+          x = Math.cos(angle) * rr + nx * gaussian() * armWidth;
+          z = Math.sin(angle) * rr + nz * gaussian() * armWidth;
+          y = gaussian() * (0.08 + radius * 0.03);
+          const t = (radius - 1.5) / 4.5;
+          if (t < 0.5) tmp.copy(cInside).lerp(cMid, t / 0.5);
+          else tmp.copy(cMid).lerp(cArmOut, (t - 0.5) / 0.5);
+          scales[i] = 0.7 + Math.random() * 1.1;
+        } else if (type < 0.85) {
+          // 絮状星云
+          const cl = clusters[(Math.random() * clusters.length) | 0];
+          const rr = Math.abs(gaussian()) * cl.radius;
+          const th = Math.random() * Math.PI * 2;
+          x = cl.x + Math.cos(th) * rr;
+          z = cl.z + Math.sin(th) * rr;
+          y = cl.y + gaussian() * cl.radius * 0.4;
+          tmp.copy(cl.color).multiplyScalar(cl.brightness);
+          scales[i] = 0.3 + Math.random() * 0.7;
+        } else {
+          // 稀疏晕
+          const r = Math.random() * 6;
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          x = Math.sin(phi) * Math.cos(theta) * r;
+          y = Math.sin(phi) * Math.sin(theta) * r * 0.25;
+          z = Math.cos(phi) * r;
+          tmp.copy(cHalo).multiplyScalar(0.4 + Math.random() * 0.5);
+          scales[i] = 0.2 + Math.random() * 0.35;
+        }
+
+        positions[i3] = x;
+        positions[i3 + 1] = y;
+        positions[i3 + 2] = z;
+        colors[i3] = tmp.r;
+        colors[i3 + 1] = tmp.g;
+        colors[i3 + 2] = tmp.b;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+      geometry.setAttribute('aScale', new THREE.BufferAttribute(scales, 1));
+
+      // 复用主星系 shader：软边圆形光点 + 多颜色
+      this.companionMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uMouse: { value: new THREE.Vector2(10, 10) },
+          uSize: { value: 70 },
+          uExposure: { value: 0.4 },
+        },
+        vertexShader: VERT,
+        fragmentShader: FRAG,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+
+      this.companionPivot = new THREE.Group();
+      this.companion = new THREE.Points(geometry, this.companionMaterial);
+      this.companion.position.set(40, 0, 0); // 公转半径，离主星系更远
+      this.companionPivot.add(this.companion);
+      this.group.add(this.companionPivot);
+
+      this.buildLinks();
+    },
+
+    // 伴星系内部的友链粒子（可悬停/点击，各有独立颜色）
+    buildLinks() {
+      const texture = makeGlowTexture();
+      this.linkGroup = new THREE.Group();
+      this.linkGroup.position.set(40, 0, 0);
+      this.companionPivot.add(this.linkGroup);
+
+      const offsets = [
+        { x: 3.2, y: 0.8, z: 0.4 },
+        { x: -2.4, y: -0.6, z: 1.6 },
+        { x: 1.2, y: 0.9, z: -2.8 },
+        { x: -1.6, y: 0.3, z: -2.0 },
+      ];
+
+      this.linkAnchors = FRIEND_LINKS.map((link, i) => {
+        const off = offsets[i] || offsets[0];
+        const anchor = new THREE.Object3D();
+        anchor.position.set(off.x, off.y, off.z);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: texture,
+          color: new THREE.Color(link.color).multiplyScalar(1.8),
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          depthTest: false,
+          transparent: true,
+        }));
+        sprite.scale.set(0.8, 0.8, 1);
+        anchor.add(sprite);
+        this.linkGroup.add(anchor);
+        return { name: link.name, url: link.url, color: link.color, anchor, sprite };
+      });
+
+      // 常态显示的名称标签（不依赖悬停）
+      this.linkLabels = this.linkAnchors.map((link) => {
+        const el = document.createElement('div');
+        el.className = 'friend-label';
+        el.textContent = link.name;
+        el.style.color = '#' + new THREE.Color(link.color).getHexString();
+        el.style.display = 'none';
+        document.body.appendChild(el);
+        return el;
+      });
+    },
+
+    // 悬停提示框
+    buildTooltip() {
+      this.tooltip = document.createElement('div');
+      this.tooltip.id = 'space-tooltip';
+      document.body.appendChild(this.tooltip);
+    },
+
+    // 3D 世界坐标投影到屏幕坐标（返回 {x,y,z}，z 为 NDC 深度）
+    projectToScreen(v) {
+      const p = v.clone().project(this.camera);
+      return {
+        x: (p.x + 1) / 2 * window.innerWidth,
+        y: (-p.y + 1) / 2 * window.innerHeight,
+        z: p.z,
+      };
+    },
+
+    updateHover(mx, my) {
+      let hit = null;
+      const wp = new THREE.Vector3();
+
+      if (this.view === 'companion') {
+        // 伴星系视角：友链优先，其次伴星系（用于返回）
+        if (this.linkAnchors) {
+          for (const link of this.linkAnchors) {
+            link.anchor.getWorldPosition(wp);
+            const s = this.projectToScreen(wp);
+            if (s.z < 1 && Math.hypot(mx - s.x, my - s.y) < 26) { hit = link; break; }
+          }
+        }
+        if (!hit) {
+          // 主星系中心（原点）：点击返回主视角
+          const s = this.projectToScreen(new THREE.Vector3(0, 0, 0));
+          if (s.z < 1 && Math.hypot(mx - s.x, my - s.y) < 90) hit = 'main';
+        }
+      } else {
+        // 主视角：只检测伴星系，避免公转时友链投影遮挡伴星系导致误触
+        if (this.companion) {
+          this.companion.getWorldPosition(wp);
+          const s = this.projectToScreen(wp);
+          if (s.z < 1 && Math.hypot(mx - s.x, my - s.y) < 45) hit = 'companion';
+        }
+      }
+
+      this.hovered = hit;
+      this.updateTooltip(mx, my, hit);
+    },
+
+    updateTooltip(mx, my, hit) {
+      if (!this.tooltip) return;
+      if (hit) {
+        this.tooltip.textContent = hit === 'companion' ? '伴星系' : hit === 'main' ? '主星系' : hit.name;
+        this.tooltip.style.opacity = '1';
+        this.tooltip.style.left = (mx + 16) + 'px';
+        this.tooltip.style.top = (my + 16) + 'px';
+      } else {
+        this.tooltip.style.opacity = '0';
+      }
+    },
+
+    activateHovered() {
+      if (this.hovered === 'companion') {
+        if (this.view === 'main') this.focusCompanion();
+      } else if (this.hovered === 'main') {
+        this.resetView();
+      } else if (this.hovered && this.hovered.url) {
+        window.open(this.hovered.url, '_blank', 'noopener');
+      }
+    },
+
+    // 传送到伴星系：隐藏恒星栏目与首页文字
+    focusCompanion() {
+      this.view = 'companion';
+      const orbit = document.getElementById('orbit');
+      const center = document.getElementById('center-view');
+      const particles = document.getElementById('star-particles');
+      if (orbit) orbit.classList.add('hidden');
+      if (center) center.classList.add('hidden');
+      if (particles) particles.classList.add('hidden');
+    },
+
+    // 返回主星系
+    resetView() {
+      this.view = 'main';
+      const orbit = document.getElementById('orbit');
+      const center = document.getElementById('center-view');
+      const particles = document.getElementById('star-particles');
+      if (orbit) orbit.classList.remove('hidden');
+      if (center) center.classList.remove('hidden');
+      if (particles) particles.classList.remove('hidden');
+    },
+
+    updateCamera(dt) {
+      const k = Math.min(1, dt * 3.5);
+      if (this.view === 'companion' && this.companion) {
+        const wp = new THREE.Vector3();
+        this.companion.getWorldPosition(wp);
+
+        // 相机从伴星系"外侧"围绕其旋转（跟随公转），并叠加用户拖拽产生的 yaw/pitch
+        const radialYaw = Math.atan2(wp.x, wp.z);
+        const yaw = this.orbitYaw + radialYaw;
+        const pitch = this.orbitPitch;
+        const dist = this.orbitDist;
+        const off = new THREE.Vector3(
+          dist * Math.cos(pitch) * Math.sin(yaw),
+          dist * Math.sin(pitch),
+          dist * Math.cos(pitch) * Math.cos(yaw)
+        );
+
+        this.camera.position.lerp(wp.clone().add(off), k);
+        this.camera.lookAt(wp);
+      } else {
+        this.camera.position.lerp(new THREE.Vector3(0, 12, 26), k);
+        this.camera.lookAt(0, 0, 0);
+      }
+    },
+
     resize() {
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -319,9 +684,39 @@
 
     animate() {
       const step = () => {
+        const dt = this.clock.getDelta();
         if (this.material) {
-          this.material.uniforms.uTime.value += this.clock.getDelta();
+          this.material.uniforms.uTime.value += dt;
         }
+        // 伴星系公转 + 自转
+        if (this.companionPivot) this.companionPivot.rotation.y += dt * 0.12;
+        if (this.companion) this.companion.rotation.y += dt * 0.15;
+        // 友链粒子轻微脉动，更显眼（体积更小、更亮）
+        if (this.linkAnchors && this.material) {
+          const pulse = 1 + 0.15 * Math.sin(this.material.uniforms.uTime.value * 3);
+          for (const link of this.linkAnchors) {
+            link.sprite.scale.set(0.8 * pulse, 0.8 * pulse, 1);
+          }
+        }
+
+        // 常态显示友链名称标签（仅伴星系视角，跟随投影位置）
+        if (this.linkAnchors && this.linkLabels) {
+          const show = this.view === 'companion';
+          for (let i = 0; i < this.linkAnchors.length; i++) {
+            const label = this.linkLabels[i];
+            if (!label) continue;
+            if (!show) { label.style.display = 'none'; continue; }
+            const s = this.projectToScreen(this.linkAnchors[i].anchor.getWorldPosition(new THREE.Vector3()));
+            if (s.z < 1) {
+              label.style.display = 'block';
+              label.style.left = s.x + 'px';
+              label.style.top = (s.y - 22) + 'px';
+            } else {
+              label.style.display = 'none';
+            }
+          }
+        }
+        this.updateCamera(dt);
         this.renderer.render(this.scene, this.camera);
         this.rafId = requestAnimationFrame(step);
       };
@@ -336,9 +731,31 @@
       document.removeEventListener('pointerdown', this.onPointerDown);
       document.removeEventListener('pointermove', this.onPointerMove);
       document.removeEventListener('pointerup', this.onPointerUp);
+      document.removeEventListener('click', this.onClick);
       if (this.galaxy) {
         this.galaxy.geometry.dispose();
         this.material.dispose();
+      }
+      if (this.companion) {
+        this.companion.geometry.dispose();
+        this.companion.material.dispose();
+      }
+      if (this.linkAnchors) {
+        for (const link of this.linkAnchors) {
+          if (link.sprite) {
+            if (link.sprite.material.map) link.sprite.material.map.dispose();
+            link.sprite.material.dispose();
+          }
+        }
+      }
+      if (this.linkLabels) {
+        for (const el of this.linkLabels) {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }
+        this.linkLabels = null;
+      }
+      if (this.tooltip && this.tooltip.parentNode) {
+        this.tooltip.parentNode.removeChild(this.tooltip);
       }
       if (this.renderer) {
         this.renderer.dispose();
