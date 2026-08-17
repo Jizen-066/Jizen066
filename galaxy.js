@@ -271,19 +271,10 @@
       this.lastY = e.clientY;
 
       if (this.view === 'companion') {
-        // 伴星系视角：绕「当前屏幕」的垂直/水平轴旋转，翻转后拖拽方向保持一致
-        const wp = new THREE.Vector3();
-        this.companion.getWorldPosition(wp);
-        const radialQuat = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, Math.atan2(wp.x, wp.z));
-        const orient = radialQuat.clone().multiply(this.orbitQuat);
-
-        // 屏幕垂直轴 = 相机 up，屏幕水平轴 = 相机 right
-        const upAxis = new THREE.Vector3(0, 1, 0).applyQuaternion(orient).normalize();
-        const rightAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(orient).normalize();
-
-        const qYaw = new THREE.Quaternion().setFromAxisAngle(upAxis, -dx * 0.005);
-        const qPitch = new THREE.Quaternion().setFromAxisAngle(rightAxis, -dy * 0.005);
-        this.orbitQuat.premultiply(qYaw).premultiply(qPitch);
+        // 伴星系视角：与主星系完全一致，绕世界轴沿鼠标拖动方向旋转
+        const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
+        const qx = new THREE.Quaternion().setFromAxisAngle(X_AXIS, dy * 0.005);
+        this.orbitQuat.premultiply(qy).premultiply(qx);
       } else {
         // 主视角：左右绕世界 Y（偏航），上下绕世界 X（俯仰），四元数累乘、无角度限制
         const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
