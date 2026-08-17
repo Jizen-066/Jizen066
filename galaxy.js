@@ -271,9 +271,9 @@
       this.lastY = e.clientY;
 
       if (this.view === 'companion') {
-        // 伴星系视角：与主星系完全一致，绕世界轴沿鼠标拖动方向旋转
-        const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
-        const qx = new THREE.Quaternion().setFromAxisAngle(X_AXIS, dy * 0.005);
+        // 伴星系视角：旋转的是相机（与主星系旋转物体方向相反），取反后画面方向才与主星系一致
+        const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, -dx * 0.005);
+        const qx = new THREE.Quaternion().setFromAxisAngle(X_AXIS, -dy * 0.005);
         this.orbitQuat.premultiply(qy).premultiply(qx);
       } else {
         // 主视角：左右绕世界 Y（偏航），上下绕世界 X（俯仰），四元数累乘、无角度限制
