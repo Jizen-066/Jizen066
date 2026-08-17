@@ -22,6 +22,7 @@
     { name: 'YYR', url: 'https://d2e27556a0604eea89cda8bffaefb020.sh2.agentos-app.net', color: 0xa78bfa },
     { name: 'QQ', url: 'https://qqhamburger.top', color: 0x34d399 },
     { name: 'PresentBox', url: 'https://mypresentboxes.com', color: 0xfbbf24 },
+    { name: 'xrk', url: 'https://xrk-hhh.github.io/starlight/', color: 0xf472b6 },
   ];
 
   const VERT = /* glsl */ `
@@ -563,6 +564,7 @@
         { x: -2.4, y: -0.6, z: 1.6 },
         { x: 1.2, y: 0.9, z: -2.8 },
         { x: -1.6, y: 0.3, z: -2.0 },
+        { x: 0.4, y: -1.2, z: 2.6 },
       ];
 
       this.linkAnchors = FRIEND_LINKS.map((link, i) => {
