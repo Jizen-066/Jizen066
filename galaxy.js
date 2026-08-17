@@ -149,6 +149,10 @@
     toggleBtn: null,
     toggleGalaxyIcon: null,
     toggleBackIcon: null,
+    paused: false,          // 暂停公转与自转
+    pauseBtn: null,
+    pauseIcon: null,
+    playIcon: null,
 
     init() {
       const width = window.innerWidth;
@@ -195,7 +199,11 @@
       document.addEventListener('click', this.onClick);
 
       // 点击右上角头像返回主星系视角
-      this.onAvatarClick = () => { if (this.view === 'companion') this.resetView(); };
+      this.onAvatarClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation(); // 阻止冒泡到 document 的 handleClick，避免移动端误触发
+        if (this.view === 'companion') this.resetView();
+      };
       const avatar = document.getElementById('avatar');
       if (avatar) avatar.addEventListener('click', this.onAvatarClick);
 
@@ -204,9 +212,24 @@
       this.toggleGalaxyIcon = document.getElementById('toggle-galaxy-icon');
       this.toggleBackIcon = document.getElementById('toggle-back-icon');
       if (this.toggleBtn) {
-        this.toggleBtn.addEventListener('click', () => {
+        this.toggleBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation(); // 阻止冒泡到 document 的 handleClick，避免移动端误触发
           if (this.view === 'companion') this.resetView();
           else this.focusCompanion();
+        });
+      }
+
+      // 右下角：暂停/恢复 星系公转与自转
+      this.pauseBtn = document.getElementById('pause-btn');
+      this.pauseIcon = document.getElementById('pause-icon');
+      this.playIcon = document.getElementById('play-icon');
+      if (this.pauseBtn) {
+        this.pauseBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.paused = !this.paused;
+          this.syncPauseButton();
         });
       }
 
@@ -669,10 +692,21 @@
     syncToggleButton() {
       if (!this.toggleGalaxyIcon || !this.toggleBackIcon) return;
       const inCompanion = this.view === 'companion';
-      this.toggleGalaxyIcon.classList.toggle('hidden', inCompanion);
-      this.toggleBackIcon.classList.toggle('hidden', !inCompanion);
+      // 用内联 display 而非依赖 Tailwind 的 hidden 类，确保移动端一定生效
+      this.toggleGalaxyIcon.style.display = inCompanion ? 'none' : '';
+      this.toggleBackIcon.style.display = inCompanion ? '' : 'none';
       if (this.toggleBtn) {
         this.toggleBtn.setAttribute('aria-label', inCompanion ? '返回主星系' : '切换到伴星系');
+      }
+    },
+
+    // 同步暂停按钮图标（播放中 -> 暂停竖条；已暂停 -> 播放三角）
+    syncPauseButton() {
+      if (!this.pauseIcon || !this.playIcon) return;
+      this.pauseIcon.style.display = this.paused ? 'none' : '';
+      this.playIcon.style.display = this.paused ? '' : 'none';
+      if (this.pauseBtn) {
+        this.pauseBtn.setAttribute('aria-label', this.paused ? '恢复星系旋转' : '暂停星系旋转');
       }
     },
 
@@ -712,12 +746,15 @@
     animate() {
       const step = () => {
         const dt = this.clock.getDelta();
-        if (this.material) {
-          this.material.uniforms.uTime.value += dt;
+        if (!this.paused) {
+          if (this.material) {
+            this.material.uniforms.uTime.value += dt;
+          }
+          // 伴星系公转 + 自转，友链粒子绕伴星系自转（与伴星系自转速度相当）
+          if (this.companionPivot) this.companionPivot.rotation.y += dt * 0.12;
+          if (this.companion) this.companion.rotation.y += dt * 0.15;
+          if (this.linkGroup) this.linkGroup.rotation.y += dt * 0.15;
         }
-        // 伴星系公转 + 自转
-        if (this.companionPivot) this.companionPivot.rotation.y += dt * 0.12;
-        if (this.companion) this.companion.rotation.y += dt * 0.15;
         // 友链粒子轻微脉动，更显眼（体积更小、更亮）
         if (this.linkAnchors && this.material) {
           const pulse = 1 + 0.15 * Math.sin(this.material.uniforms.uTime.value * 3);
