@@ -113,7 +113,11 @@
     // 尝试自动播放；被浏览器拦截时，音频就绪后或首次交互再试
     play();
     bgm.addEventListener('canplay', () => { if (!playing) play(); });
-    document.addEventListener('pointerdown', () => { if (!playing) play(); }, { once: true });
+    document.addEventListener('pointerdown', (e) => {
+      // 跳过音乐按钮自身：否则 pointerdown 先触发 play()，紧接着按钮 click 又因 playing 已为 true 而 pause()，造成"闪一下"
+      if (e.target && typeof e.target.closest === 'function' && e.target.closest('#mute-btn')) return;
+      if (!playing) play();
+    }, { once: true });
 
     // 按钮：播放/暂停切换
     btn.addEventListener('click', () => {
