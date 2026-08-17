@@ -142,8 +142,7 @@
     hovered: null,         // 'companion' | 'main' | {name,url,color,anchor,sprite} | null
     tooltip: null,
     companionMaterial: null,
-    orbitYaw: 0,
-    orbitPitch: 0.35,
+    orbitQuat: new THREE.Quaternion().setFromAxisAngle(X_AXIS, -0.35), // 伴星系视角相机轨道旋转（四元数，无万向锁、无角度限制）
     orbitDist: 9,
     onAvatarClick: null,
     toggleBtn: null,
@@ -272,19 +271,10 @@
       this.lastY = e.clientY;
 
       if (this.view === 'companion') {
-        // 伴星系视角：绕伴星系 orbit 相机（增量，不归位），上下无限制旋转
-        this.orbitYaw -= dx * 0.005;
-        this.orbitPitch += dy * 0.005;
-
-        // 超过 ±90° 时归一化（等价翻转 + 偏航补 π），避免球坐标极点的"空气墙"
-        const HALF_PI = Math.PI / 2;
-        if (this.orbitPitch > HALF_PI) {
-          this.orbitPitch = Math.PI - this.orbitPitch;
-          this.orbitYaw += Math.PI;
-        } else if (this.orbitPitch < -HALF_PI) {
-          this.orbitPitch = -Math.PI - this.orbitPitch;
-          this.orbitYaw += Math.PI;
-        }
+        // 伴星系视角：四元数累乘轨道旋转（与主星系一致，无万向锁、无角度限制、可任意连续翻转）
+        const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, -dx * 0.005);
+        const qx = new THREE.Quaternion().setFromAxisAngle(X_AXIS, dy * 0.005);
+        this.orbitQuat.premultiply(qy).premultiply(qx);
       } else {
         // 主视角：左右绕世界 Y（偏航），上下绕世界 X（俯仰），四元数累乘、无角度限制
         const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
@@ -726,19 +716,17 @@
         const wp = new THREE.Vector3();
         this.companion.getWorldPosition(wp);
 
-        // 相机从伴星系"外侧"围绕其旋转（跟随公转），并叠加用户拖拽产生的 yaw/pitch
+        // 相机从伴星系"外侧"围绕其旋转（跟随公转），叠加用户四元数轨道旋转，无万向锁、可任意连续翻转
         const radialYaw = Math.atan2(wp.x, wp.z);
-        const yaw = this.orbitYaw + radialYaw;
-        const pitch = this.orbitPitch;
-        const dist = this.orbitDist;
-        const off = new THREE.Vector3(
-          dist * Math.cos(pitch) * Math.sin(yaw),
-          dist * Math.sin(pitch),
-          dist * Math.cos(pitch) * Math.cos(yaw)
-        );
+        const radialQuat = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, radialYaw);
+        const baseOff = new THREE.Vector3(0, 0, this.orbitDist);
+        const off = baseOff.clone().applyQuaternion(this.orbitQuat).applyQuaternion(radialQuat);
 
         this.camera.position.lerp(wp.clone().add(off), k);
-        this.camera.lookAt(wp);
+
+        // 朝向直接用四元数决定（避免 lookAt 在极点处的万向锁翻转）
+        const orient = radialQuat.clone().multiply(this.orbitQuat);
+        this.camera.quaternion.slerp(orient, k);
       } else {
         this.camera.position.lerp(new THREE.Vector3(0, 12, 26), k);
         this.camera.lookAt(0, 0, 0);
