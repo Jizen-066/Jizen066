@@ -142,8 +142,8 @@
     hovered: null,         // 'companion' | 'main' | {name,url,color,anchor,sprite} | null
     tooltip: null,
     companionMaterial: null,
-    orbitYaw: 0,
-    orbitPitch: 0.35,
+    orbitYaw: 0,           // 伴星系视角：偏航角（绕 Y）
+    orbitPitch: 0.35,      // 伴星系视角：仰角（无限制，可翻转）
     orbitDist: 9,
     onAvatarClick: null,
     toggleBtn: null,
@@ -272,9 +272,9 @@
       this.lastY = e.clientY;
 
       if (this.view === 'companion') {
-        // 伴星系视角：轨道相机（在球壳上移动、始终对准中心），左右偏航、上下俯仰，无自转
+        // 伴星系视角：轨道相机（在球壳上移动、始终对准中心），仰角无限制可翻转
         this.orbitYaw -= dx * 0.005;
-        this.orbitPitch = Math.max(-1.55, Math.min(1.55, this.orbitPitch + dy * 0.005));
+        this.orbitPitch += dy * 0.005;
       } else {
         // 主视角：左右绕世界 Y（偏航），上下绕世界 X（俯仰），四元数累乘、无角度限制
         const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
@@ -716,18 +716,25 @@
         const wp = new THREE.Vector3();
         this.companion.getWorldPosition(wp);
 
-        // 轨道相机：相机在以伴星系为中心的球壳上移动、始终对准中心（左右偏航、上下俯仰，无自转）
+        // 轨道相机：相机在「以伴星系为球心」的球壳上移动，始终对准中心；仰角无限制可翻转
         const radialYaw = Math.atan2(wp.x, wp.z);
-        const yaw = this.orbitYaw + radialYaw;
-        const pitch = this.orbitPitch;
-        const dist = this.orbitDist;
+        const theta = this.orbitYaw + radialYaw;
+        const phi = this.orbitPitch;
+        const r = this.orbitDist;
         const off = new THREE.Vector3(
-          dist * Math.cos(pitch) * Math.sin(yaw),
-          dist * Math.sin(pitch),
-          dist * Math.cos(pitch) * Math.cos(yaw)
+          r * Math.cos(phi) * Math.sin(theta),
+          r * Math.sin(phi),
+          r * Math.cos(phi) * Math.cos(theta)
         );
 
         this.camera.position.lerp(wp.clone().add(off), k);
+
+        // up 沿球面「经线」方向（pitch 增大方向），始终垂直于视线，避免 lookAt 在极点处万向锁/自转
+        this.camera.up.set(
+          -Math.sin(phi) * Math.sin(theta),
+          Math.cos(phi),
+          -Math.sin(phi) * Math.cos(theta)
+        );
         this.camera.lookAt(wp);
       } else {
         this.camera.position.lerp(new THREE.Vector3(0, 12, 26), k);
