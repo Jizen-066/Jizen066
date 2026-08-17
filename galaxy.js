@@ -282,7 +282,7 @@
         const rightAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(orient).normalize();
 
         const qYaw = new THREE.Quaternion().setFromAxisAngle(upAxis, -dx * 0.005);
-        const qPitch = new THREE.Quaternion().setFromAxisAngle(rightAxis, dy * 0.005);
+        const qPitch = new THREE.Quaternion().setFromAxisAngle(rightAxis, -dy * 0.005);
         this.orbitQuat.premultiply(qYaw).premultiply(qPitch);
       } else {
         // 主视角：左右绕世界 Y（偏航），上下绕世界 X（俯仰），四元数累乘、无角度限制
