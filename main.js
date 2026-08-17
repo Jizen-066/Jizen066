@@ -433,7 +433,7 @@
     window.Stars.init('stars', { count: 160 });
     initLoader();
     bindSoundEffects();
-    initBGM();
+    // initBGM(); // 背景音乐暂未取得授权，禁用中
     bindBlogToggle();
     initOrbit();
     unlockAudioOnFirstInteraction();
