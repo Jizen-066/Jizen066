@@ -142,7 +142,8 @@
     hovered: null,         // 'companion' | 'main' | {name,url,color,anchor,sprite} | null
     tooltip: null,
     companionMaterial: null,
-    orbitQuat: new THREE.Quaternion(), // 伴星系视角的用户旋转（四元数累乘，无角度限制）
+    orbitYaw: 0,
+    orbitPitch: 0.35,
     orbitDist: 9,
     onAvatarClick: null,
     toggleBtn: null,
@@ -271,10 +272,19 @@
       this.lastY = e.clientY;
 
       if (this.view === 'companion') {
-        // 伴星系视角：绕伴星系四元数累乘（与主星系一致，无角度限制、无空气墙）
-        const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
-        const qx = new THREE.Quaternion().setFromAxisAngle(X_AXIS, dy * 0.005);
-        this.orbitQuat.premultiply(qy).premultiply(qx);
+        // 伴星系视角：绕伴星系 orbit 相机（增量，不归位），上下无限制旋转
+        this.orbitYaw -= dx * 0.005;
+        this.orbitPitch += dy * 0.005;
+
+        // 超过 ±90° 时归一化（等价翻转 + 偏航补 π），避免球坐标极点的"空气墙"
+        const HALF_PI = Math.PI / 2;
+        if (this.orbitPitch > HALF_PI) {
+          this.orbitPitch = Math.PI - this.orbitPitch;
+          this.orbitYaw += Math.PI;
+        } else if (this.orbitPitch < -HALF_PI) {
+          this.orbitPitch = -Math.PI - this.orbitPitch;
+          this.orbitYaw += Math.PI;
+        }
       } else {
         // 主视角：左右绕世界 Y（偏航），上下绕世界 X（俯仰），四元数累乘、无角度限制
         const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
@@ -716,18 +726,19 @@
         const wp = new THREE.Vector3();
         this.companion.getWorldPosition(wp);
 
-        // 相机从伴星系"外侧上方"看它（跟随公转），叠加用户四元数旋转，无角度限制
+        // 相机从伴星系"外侧"围绕其旋转（跟随公转），并叠加用户拖拽产生的 yaw/pitch
         const radialYaw = Math.atan2(wp.x, wp.z);
-        const radialQuat = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, radialYaw);
-        const baseOff = new THREE.Vector3(0, 4.5, this.orbitDist);
-        const off = baseOff.clone().applyQuaternion(this.orbitQuat).applyQuaternion(radialQuat);
+        const yaw = this.orbitYaw + radialYaw;
+        const pitch = this.orbitPitch;
+        const dist = this.orbitDist;
+        const off = new THREE.Vector3(
+          dist * Math.cos(pitch) * Math.sin(yaw),
+          dist * Math.sin(pitch),
+          dist * Math.cos(pitch) * Math.cos(yaw)
+        );
 
         this.camera.position.lerp(wp.clone().add(off), k);
-
-        // 朝向：先看向伴星系，再叠加用户旋转，避免 lookAt 在极点处的翻转奇点
-        const lookDir = wp.clone().sub(this.camera.position).normalize();
-        const lookQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), lookDir);
-        this.camera.quaternion.copy(this.orbitQuat.clone().multiply(lookQuat));
+        this.camera.lookAt(wp);
       } else {
         this.camera.position.lerp(new THREE.Vector3(0, 12, 26), k);
         this.camera.lookAt(0, 0, 0);
