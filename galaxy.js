@@ -114,6 +114,8 @@
     renderer: null,
     scene: null,
     camera: null,
+    world: null,
+    focus: null,
     group: null,
     galaxy: null,
     material: null,
@@ -142,9 +144,6 @@
     hovered: null,         // 'companion' | 'main' | {name,url,color,anchor,sprite} | null
     tooltip: null,
     companionMaterial: null,
-    orbitYaw: 0,           // 伴星系视角：偏航角（绕 Y）
-    orbitPitch: 0.35,      // 伴星系视角：仰角（无限制，可翻转）
-    orbitDist: 9,
     onAvatarClick: null,
     toggleBtn: null,
     toggleGalaxyIcon: null,
@@ -271,17 +270,13 @@
       this.lastX = e.clientX;
       this.lastY = e.clientY;
 
-      if (this.view === 'companion') {
-        // 伴星系视角：轨道相机（在球壳上移动、始终对准中心），仰角无限制可翻转
-        this.orbitYaw -= dx * 0.005;
-        this.orbitPitch += dy * 0.005;
-      } else {
-        // 主视角：左右绕世界 Y（偏航），上下绕世界 X（俯仰），四元数累乘、无角度限制
-        const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
-        const qx = new THREE.Quaternion().setFromAxisAngle(X_AXIS, dy * 0.005);
-        this.group.quaternion.premultiply(qy).premultiply(qx);
+      // 主/伴星系共用同一套：绕世界 Y/X 轴旋转世界中心（旋转的是物体而非相机），无空气墙、无自转
+      const qy = new THREE.Quaternion().setFromAxisAngle(Y_AXIS, dx * 0.005);
+      const qx = new THREE.Quaternion().setFromAxisAngle(X_AXIS, dy * 0.005);
+      this.world.quaternion.premultiply(qy).premultiply(qx);
 
-        // 同步让星空层产生视差位移（模拟视角转动）
+      // 主视角：同步让星空层产生视差位移（模拟视角转动）
+      if (this.view === 'main') {
         try { window.Stars && window.Stars.pan(dx, dy); } catch (err) {}
       }
     },
@@ -423,11 +418,17 @@
 
       this.galaxy = new THREE.Points(geometry, this.material);
 
-      // group 承载星系：默认轻微倾斜，之后可被拖拽任意翻转
+      // world 承载拖拽旋转（主/伴星系共用同一套：绕世界原点旋转物体）
+      // focus 承载"世界中心"平移（切换视角时把焦点星系移到原点）
+      // group 承载默认倾斜，内部放主星系与伴星系公转轴
+      this.world = new THREE.Group();
+      this.focus = new THREE.Group();
       this.group = new THREE.Group();
       this.group.quaternion.setFromEuler(new THREE.Euler(0.3, 0, 0.08));
       this.group.add(this.galaxy);
-      this.scene.add(this.group);
+      this.focus.add(this.group);
+      this.world.add(this.focus);
+      this.scene.add(this.world);
     },
 
     // 伴星系：更小、粒子更少，绕主星系公转（与主星系同样的多颜色 + 絮状星云）
@@ -625,8 +626,9 @@
           }
         }
         if (!hit) {
-          // 主星系中心（原点）：点击返回主视角
-          const s = this.projectToScreen(new THREE.Vector3(0, 0, 0));
+          // 主星系中心（现已移到伴星系相对负方向）：点击返回主视角
+          this.galaxy.getWorldPosition(wp);
+          const s = this.projectToScreen(wp);
           if (s.z < 1 && Math.hypot(mx - s.x, my - s.y) < 90) hit = 'main';
         }
       } else {
@@ -713,30 +715,18 @@
     updateCamera(dt) {
       const k = Math.min(1, dt * 3.5);
       if (this.view === 'companion' && this.companion) {
-        const wp = new THREE.Vector3();
-        this.companion.getWorldPosition(wp);
+        // 世界中心切换到伴星系：伴星系移到原点，主星系反向位移（跟随公转，环绕关系丝滑互换）
+        const offset = this.companion.position.clone()
+          .applyQuaternion(this.companionPivot.quaternion)
+          .applyQuaternion(this.group.quaternion);
+        this.focus.position.lerp(offset.clone().negate(), k);
 
-        // 轨道相机：相机在「以伴星系为球心」的球壳上移动，始终对准中心；仰角无限制可翻转
-        const radialYaw = Math.atan2(wp.x, wp.z);
-        const theta = this.orbitYaw + radialYaw;
-        const phi = this.orbitPitch;
-        const r = this.orbitDist;
-        const off = new THREE.Vector3(
-          r * Math.cos(phi) * Math.sin(theta),
-          r * Math.sin(phi),
-          r * Math.cos(phi) * Math.cos(theta)
-        );
-
-        this.camera.position.lerp(wp.clone().add(off), k);
-
-        // up 沿球面「经线」方向（pitch 增大方向），始终垂直于视线，避免 lookAt 在极点处万向锁/自转
-        this.camera.up.set(
-          -Math.sin(phi) * Math.sin(theta),
-          Math.cos(phi),
-          -Math.sin(phi) * Math.cos(theta)
-        );
-        this.camera.lookAt(wp);
+        // 相机更近地看向原点（伴星系更小）
+        this.camera.position.lerp(new THREE.Vector3(0, 4, 9), k);
+        this.camera.lookAt(0, 0, 0);
       } else {
+        // 主视角：世界中心回到主星系原点
+        this.focus.position.lerp(new THREE.Vector3(0, 0, 0), k);
         this.camera.position.lerp(new THREE.Vector3(0, 12, 26), k);
         this.camera.lookAt(0, 0, 0);
       }
