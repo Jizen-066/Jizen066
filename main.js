@@ -51,18 +51,28 @@
   }
 
   // ===== 开屏流程 =====
-  function initLoader() {
+  function dismissLoader() {
     const loader = document.getElementById('loader');
     const content = document.getElementById('content');
+    if (!loader || !content || loader._dismissed) return;
+    loader._dismissed = true;
+    loader.classList.add('opacity-0');
+    content.classList.remove('opacity-0');
+    setTimeout(() => loader.remove(), 1100);
+  }
+
+  function initLoader() {
+    const loader = document.getElementById('loader');
+    if (!loader) return;
 
     window.addEventListener('load', () => {
       playStartupSafe();
-      setTimeout(() => {
-        loader.classList.add('opacity-0');
-        content.classList.remove('opacity-0');
-        setTimeout(() => loader.remove(), 1100);
-      }, 800);
+      setTimeout(dismissLoader, 800);
     });
+
+    // 兜底：即便 load 未触发（如外部资源加载卡住）或某个模块初始化抛错，
+    // 也在超时后强制进入页面，避免一直停留在 "INITIALIZING..."。
+    setTimeout(dismissLoader, 4000);
   }
 
   // ===== 音效事件绑定（悬停等） =====
@@ -429,8 +439,8 @@
 
   // ===== 启动 =====
   document.addEventListener('DOMContentLoaded', () => {
-    window.Galaxy.init();
-    window.Stars.init('stars', { count: 160 });
+    try { window.Galaxy.init(); } catch (e) { console.error('Galaxy 初始化失败：', e); }
+    try { window.Stars.init('stars', { count: 160 }); } catch (e) { console.error('Stars 初始化失败：', e); }
     initLoader();
     bindSoundEffects();
     // initBGM(); // 背景音乐暂未取得授权，禁用中
